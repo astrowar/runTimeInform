@@ -1,6 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 //runTime executor
+/// <reference path="definitions.d.ts" />
+const model_1 = require("./model");
+const util_1 = require("util");
 var Interpreter;
 (function (Interpreter) {
     class MatchTerm {
@@ -140,19 +143,323 @@ var Interpreter;
         }
     }
     Interpreter.ActionCmd = ActionCmd;
+    class RelationDecl extends model_1.Model.Kind {
+    }
+    Interpreter.RelationDecl = RelationDecl;
+    class RelationOneOther extends RelationDecl {
+        constructor() {
+            super();
+            this.isSimetric = true;
+            this.relations = [];
+        }
+        remove(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
+        add(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
+        getRelations() {
+            return this.relations;
+        }
+    }
+    Interpreter.RelationOneOther = RelationOneOther;
+    class RelationOneOne extends RelationDecl {
+        constructor() {
+            super();
+            this.isSimetric = false;
+            this.relations = [];
+        }
+        remove(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
+        add(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
+        getRelations() {
+            return this.relations;
+        }
+    }
+    Interpreter.RelationOneOne = RelationOneOne;
+    class RelationOneMany extends RelationDecl {
+        constructor() {
+            super();
+            this.isSimetric = false;
+            this.relations = [];
+        }
+        getRelations() {
+            return this.relations;
+        }
+        remove(x, y, fn) {
+            let ret = false;
+            for (var [i, ab] of this.relations.entries()) {
+                if (fn(ab[0], x)) {
+                    for (var [j, b] of ab[1].entries()) {
+                        if (fn(b, y)) {
+                            ret = true;
+                            ab[1].splice(j, 1);
+                        }
+                    }
+                    if (ab[1].length == 0)
+                        this.relations.splice(i, 1);
+                }
+            }
+            return ret;
+        }
+        add(x, y, fn) {
+            let ret = false;
+            for (var [i, ab] of this.relations.entries()) {
+                if (fn(ab[0], x)) {
+                    for (var [j, b] of ab[1].entries()) {
+                        if (fn(b, y)) {
+                            return true;
+                        }
+                    }
+                    ab[1].push(y);
+                    return true;
+                }
+            }
+            this.relations.push([x, [y]]);
+            return true;
+        }
+    }
+    Interpreter.RelationOneMany = RelationOneMany;
+    class RelationManyOne extends RelationDecl {
+        constructor() {
+            super();
+            this.isSimetric = false;
+            this.relations = [];
+        }
+        getRelations() {
+            return this.relations;
+        }
+        remove(x, y, fn) {
+            let ret = false;
+            for (var [i, ab] of this.relations.entries()) {
+                if (fn(ab[1], y)) {
+                    for (var [j, a] of ab[0].entries()) {
+                        if (fn(a, x)) {
+                            ret = true;
+                            ab[0].splice(j, 1);
+                        }
+                    }
+                    if (ab[0].length == 0)
+                        this.relations.splice(i, 1);
+                }
+            }
+            return ret;
+        }
+        add(x, y, fn) {
+            let ret = false;
+            for (var [i, ab] of this.relations.entries()) {
+                if (fn(ab[1], y)) {
+                    for (var [j, a] of ab[0].entries()) {
+                        if (fn(a, x)) {
+                            return true;
+                        }
+                    }
+                    ab[0].push(x);
+                    return true;
+                }
+            }
+            this.relations.push([[x], y]);
+            return true;
+        }
+    }
+    Interpreter.RelationManyOne = RelationManyOne;
+    class RelationManyMany extends RelationDecl {
+        constructor() {
+            super();
+            this.isSimetric = false;
+            this.relations = [];
+        }
+        remove(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
+        add(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
+        getRelations() {
+            return this.relations;
+        }
+    }
+    Interpreter.RelationManyMany = RelationManyMany;
     function decomposeActionParse(x) {
         let ret = {};
         x.forEach((j) => { ret[j.var_name] = j.value.join(" "); });
         return ret;
     }
+    class AliasToObject {
+        constructor(name, target) {
+            this.names = [name];
+            this.obj = target;
+        }
+    }
+    class DefinitionHeader {
+        constructor(x, v, y) {
+            this.x = x;
+            this.y = y;
+            this.v = v;
+        }
+    }
+    Interpreter.DefinitionHeader = DefinitionHeader;
+    class DefinitionPool {
+        constructor() {
+            this.defs = [];
+        }
+        add(d, fn) {
+            this.defs.push([d, fn]);
+        }
+    }
+    Interpreter.DefinitionPool = DefinitionPool;
     class RunTime {
         constructor() {
             this.actions = [];
-            this.player = new Model.Person("self");
+            this.relations = [];
+            this.verbToRelationId = {};
+            this.defines = new DefinitionPool();
+            this.registred = []; //todas as coisas
             this.buffer = "";
         }
         write(x) {
             this.buffer = this.buffer + x;
+        }
+        isMatchItem(a, b) {
+            if (a == b)
+                return a;
+            if (typeof a == "string") {
+                let ax = this.resolve(a);
+                if (ax != null)
+                    return this.isMatchItem(ax, b);
+            }
+            if (typeof b == "string") {
+                let bx = this.resolve(b);
+                if (bx != null)
+                    return this.isMatchItem(a, bx);
+            }
+            if (a instanceof model_1.Model.Kind) {
+                if (typeof b == "string") {
+                    if (a.inheritance.indexOf(b) >= 0)
+                        return a;
+                }
+            }
+            if (b instanceof model_1.Model.Kind) {
+                if (typeof a == "string") {
+                    if (b.inheritance.indexOf(a) >= 0)
+                        return a;
+                }
+            }
+            return null;
+        }
+        isMatch(h, x, v, y) {
+            let rx = (this.isMatchItem(x, h.x));
+            if (rx === null)
+                return null;
+            return [rx, v, y];
+        }
+        checkDefinition(x, v, y) {
+            for (var [i, def] of this.defines.defs.entries()) {
+                let rx = this.isMatch(def[0], x, v, y);
+                if (rx == null)
+                    continue;
+                return def[1](rx[0], v, y);
+            }
+        }
+        resolve(name) {
+            let rg = this.registred;
+            for (var [i, r] of rg.entries()) {
+                if (r.names.indexOf(name) > -1) {
+                    return r.obj;
+                }
+            }
+            return null;
+        }
+        register(obj) {
+            let oNamed = obj;
+            if (oNamed.public_name !== undefined) {
+                if (oNamed.public_name != "") {
+                    this.registred.push(new AliasToObject(oNamed.public_name, obj));
+                }
+            }
+            return obj;
+        }
+        error(err_msg) {
+            console.log(err_msg);
+            throw new Error(err_msg);
+        }
+        is_k(arg0, x) {
+            for (var [i, v] of arg0.enumProperies.entries()) {
+                if (v.values.indexOf(x) > -1) {
+                    return v.actualValue === x;
+                }
+                throw new Error(x + " not found .");
+            }
+            return false;
+        }
+        is(arg0, obj_name) {
+            if (arg0 instanceof model_1.Model.Kind) {
+                return this.is_k(arg0, obj_name);
+            }
+            let oo = this.resolve(arg0);
+            if (oo === null) {
+                rt.error(arg0.toString() + " is undefined");
+                return false;
+            }
+            return this.is_k(oo, obj_name);
+            return false;
+        }
+        now_set_k(arg0, x) {
+            for (var [i, v] of arg0.enumProperies.entries()) {
+                if (v.values.indexOf(x) > -1) {
+                    return v.actualValue = x;
+                }
+                throw new Error(x + " not found .");
+            }
+            return true;
+        }
+        now_set(arg0, obj_name) {
+            if (arg0 instanceof model_1.Model.Kind) {
+                return this.now_set_k(arg0, obj_name);
+            }
+            let oo = this.resolve(arg0);
+            if (oo === null) {
+                rt.error(arg0.toString() + " is undefined");
+                return false;
+            }
+            return this.now_set_k(oo, obj_name);
+        }
+        resetRelation(r, x, y) {
+            r.remove(x, "any", (a, b) => { return a === "any" || b === "any" || this.is(a, b); });
+            r.add(x, y, (a, b) => { return this.is(a, b); });
+        }
+        now(arg0, verb, obj_name) {
+            if (verb == "is")
+                return this.now_set(arg0, obj_name);
+            let relation = this.verbToRelationId[verb];
+            if (util_1.isUndefined(relation) == false) {
+                let r = relation;
+                this.resetRelation(r, arg0, obj_name);
+                return true;
+                //for (var [j, ri] of r.getRelations().entries())
+                //{
+                //    console.log(ri)
+                //    return true
+                //}
+            }
+            return false;
+        }
+        _(arg0, verb, obj_name) {
+            let obj = this.resolve(obj_name);
+            if (obj == null)
+                return false;
+            let relation = this.verbToRelationId[verb];
+            // for (var [i, r] of this.relations.entries() )
+            {
+                let r = relation;
+                for (var [j, ri] of r.getRelations()) {
+                    console.log(ri);
+                }
+            }
+            return false;
         }
         tryParseCmd(cmd) {
             let saved_buffer = this.buffer + "";
@@ -188,7 +495,7 @@ let a_get = new Interpreter.ActionCmd();
 a_get.patten = "get X";
 function check_ligh(rt, params) {
     let obj = params["X"];
-    if (rt.player.location.contains("light") == false) {
+    if (rt.player.location._("contains", "light") == false) {
         rt.write("is too dark to see anything");
         return Interpreter.ActionStatus.StopAction;
     }
@@ -201,7 +508,32 @@ function report_get(rt, params) {
 a_get.check.add(check_ligh);
 a_get.report.add(report_get);
 rt.actions.push(a_get);
+rt.defines.add(new Interpreter.DefinitionHeader("Room", "contains", "light"), (room, v, a) => { return (room.is("lit")); });
+rt.defines.add(new Interpreter.DefinitionHeader("Room", "contains", "light"), (room, v, a) => { return (room.is("external") && rt.is("daytime", "day")); });
+rt.defines.add(new Interpreter.DefinitionHeader("Thing", "emite", "light"), (t, v, a) => { return t.is("on"); });
+model_1.Model.Kind.setRuntime(rt);
+let _ = rt._;
+var __ = (x) => { return rt.resolve(x); };
+let flashlight = new model_1.Model.Thing("flashlight");
+//console.log("flashlight:", __("flashlight"))
+//console.log("flashlight:", flashlight)
+flashlight.canBe("on", "off").ussually("off");
+rt.verbToRelationId["contains"] = new Interpreter.RelationOneMany();
+rt.player = new model_1.Model.Person("self");
+rt.player.location = rt.register(new model_1.Model.Room("limbo"));
+let limbo = new model_1.Model.Room().called("limbo");
+limbo.canBe("external", "internal");
+console.log(limbo.is("external"));
+console.log("flashlight emite light : ", rt.checkDefinition("flashlight", "emit", "light"));
+rt.now(flashlight, "is", "on");
+console.log("flashlight emite light : ", rt.checkDefinition("flashlight", "emit", "light"));
+rt.now(flashlight, "is", "on");
+rt.now("limbo", "contains", "flashlight");
+console.log(rt._(__("limbo"), "contains", "flashlight"));
+//let flashlight = new Model.Thing("flashlight") 
+//console.log("limbo:", rt.resolve("limbo"))
+//console.log("flashlight:", __("flashlight"))
 rt.tryParseCmd("get a box");
-console.log(rt.buffer);
+//console.log(rt.buffer)
 console.log("end");
 //# sourceMappingURL=app.js.map
