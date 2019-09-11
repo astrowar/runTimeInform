@@ -6,6 +6,12 @@ const model_1 = require("./model");
 const util_1 = require("util");
 var Interpreter;
 (function (Interpreter) {
+    let AssertReturn;
+    (function (AssertReturn) {
+        AssertReturn[AssertReturn["Equals"] = 0] = "Equals";
+        AssertReturn[AssertReturn["NotEquals"] = 1] = "NotEquals";
+        AssertReturn[AssertReturn["Undefined"] = 2] = "Undefined";
+    })(AssertReturn || (AssertReturn = {}));
     class MatchTerm {
     }
     class MatchVar extends MatchTerm {
@@ -152,6 +158,9 @@ var Interpreter;
             this.isSimetric = true;
             this.relations = [];
         }
+        query(x, y, fn) {
+            throw new Error("Method not implemented.");
+        }
         remove(x, y, fn) {
             throw new Error("Method not implemented.");
         }
@@ -168,6 +177,9 @@ var Interpreter;
             super();
             this.isSimetric = false;
             this.relations = [];
+        }
+        query(x, y, fn) {
+            throw new Error("Method not implemented.");
         }
         remove(x, y, fn) {
             throw new Error("Method not implemented.");
@@ -204,6 +216,19 @@ var Interpreter;
                 }
             }
             return ret;
+        }
+        query(x, y, fn) {
+            let ret = false;
+            for (var [i, ab] of this.relations.entries()) {
+                if (fn(ab[0], x)) {
+                    for (var [j, b] of ab[1].entries()) {
+                        if (fn(b, y)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
         }
         add(x, y, fn) {
             let ret = false;
@@ -264,6 +289,19 @@ var Interpreter;
             this.relations.push([[x], y]);
             return true;
         }
+        query(x, y, fn) {
+            let ret = false;
+            for (var [i, ab] of this.relations.entries()) {
+                if (fn(ab[1], y)) {
+                    for (var [j, a] of ab[0].entries()) {
+                        if (fn(a, x)) {
+                            return true;
+                        }
+                    }
+                }
+            }
+            return false;
+        }
     }
     Interpreter.RelationManyOne = RelationManyOne;
     class RelationManyMany extends RelationDecl {
@@ -271,6 +309,9 @@ var Interpreter;
             super();
             this.isSimetric = false;
             this.relations = [];
+        }
+        query(x, y, fn) {
+            throw new Error("Method not implemented.");
         }
         remove(x, y, fn) {
             throw new Error("Method not implemented.");
@@ -325,7 +366,7 @@ var Interpreter;
         }
         isMatchItem(a, b) {
             if (a == b)
-                return a;
+                return AssertReturn.Equals;
             if (typeof a == "string") {
                 let ax = this.resolve(a);
                 if (ax != null)
@@ -345,14 +386,15 @@ var Interpreter;
             if (b instanceof model_1.Model.Kind) {
                 if (typeof a == "string") {
                     if (b.inheritance.indexOf(a) >= 0)
-                        return a;
+                        return b;
                 }
             }
-            return null;
+            return AssertReturn.Undefined;
+            ;
         }
         isMatch(h, x, v, y) {
             let rx = (this.isMatchItem(x, h.x));
-            if (rx === null)
+            if (rx === AssertReturn.Undefined)
                 return null;
             return [rx, v, y];
         }
@@ -386,26 +428,67 @@ var Interpreter;
             console.log(err_msg);
             throw new Error(err_msg);
         }
-        is_k(arg0, x) {
+        is_enum(arg0, x) {
             for (var [i, v] of arg0.enumProperies.entries()) {
                 if (v.values.indexOf(x) > -1) {
-                    return v.actualValue === x;
+                    if (v.actualValue === x)
+                        return AssertReturn.Equals;
+                    return AssertReturn.NotEquals;
                 }
-                throw new Error(x + " not found .");
+                // throw new Error(x + " not found .");
+            }
+            return AssertReturn.Undefined;
+        }
+        is_k(arg0, x) {
+            let rmm = this.isMatchItem(arg0, x);
+            if (rmm == AssertReturn.Equals)
+                return true;
+            if (rmm == AssertReturn.NotEquals)
+                return false;
+            if ((arg0 instanceof model_1.Model.Kind) && (typeof x == "string")) {
+                let rr = this.is_enum(arg0, x);
+                if (rr == AssertReturn.Equals)
+                    return true;
+                if (rr == AssertReturn.NotEquals)
+                    return false;
             }
             return false;
         }
         is(arg0, obj_name) {
-            if (arg0 instanceof model_1.Model.Kind) {
-                return this.is_k(arg0, obj_name);
+            let ax = arg0;
+            let ox = obj_name;
+            if (typeof arg0 == "string") {
+                ax = this.resolve(arg0);
+                if (ax === null)
+                    ax = arg0;
             }
-            let oo = this.resolve(arg0);
-            if (oo === null) {
-                rt.error(arg0.toString() + " is undefined");
-                return false;
+            if (typeof obj_name == "string") {
+                ox = this.resolve(obj_name);
+                if (ox === null)
+                    ox = obj_name;
             }
-            return this.is_k(oo, obj_name);
-            return false;
+            if (typeof ax == "string")
+                return this.is_k(ox, ax);
+            return this.is_k(ax, ox);
+            //if (arg0 instanceof Model.Kind)
+            //{
+            //    return this.is_k(arg0, obj_name)
+            //} 
+            //if (typeof obj_name == "string") {
+            //    let ox = this.resolve(obj_name)
+            //    if (ox == null) return this.is_k(arg0, obj_name)
+            //    return this.is_k(arg0, ox)
+            //} 
+            //if (typeof arg0 == "string") {
+            //    ox = this.resolve(arg0)
+            //    if (oo === null)
+            //    {
+            //        //rt.error(arg0.toString() + " is undefined")
+            //        return false;
+            //    }
+            //} 
+            //return this.is_k(oo, obj_name) 
+            //return false;
         }
         now_set_k(arg0, x) {
             for (var [i, v] of arg0.enumProperies.entries()) {
@@ -456,7 +539,7 @@ var Interpreter;
             {
                 let r = relation;
                 for (var [j, ri] of r.getRelations()) {
-                    console.log(ri);
+                    return r.query(arg0, obj_name, (a, b) => { return this.is(a, b); });
                 }
             }
             return false;
@@ -524,12 +607,13 @@ rt.player.location = rt.register(new model_1.Model.Room("limbo"));
 let limbo = new model_1.Model.Room().called("limbo");
 limbo.canBe("external", "internal");
 console.log(limbo.is("external"));
+console.log("has flashligh in limbo ? ", rt._(__("limbo"), "contains", "flashlight"));
 console.log("flashlight emite light : ", rt.checkDefinition("flashlight", "emit", "light"));
 rt.now(flashlight, "is", "on");
 console.log("flashlight emite light : ", rt.checkDefinition("flashlight", "emit", "light"));
 rt.now(flashlight, "is", "on");
 rt.now("limbo", "contains", "flashlight");
-console.log(rt._(__("limbo"), "contains", "flashlight"));
+console.log("has flashligh in limbo ? ", rt._(__("limbo"), "contains", "flashlight"));
 //let flashlight = new Model.Thing("flashlight") 
 //console.log("limbo:", rt.resolve("limbo"))
 //console.log("flashlight:", __("flashlight"))

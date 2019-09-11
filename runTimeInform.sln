@@ -7,6 +7,8 @@ Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "runTimeInform", "runTimeInf
 EndProject
 Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "RuntimeStart", "RuntimeStart\RuntimeStart.njsproj", "{54F9E221-BE12-415F-BFB3-343FCA517F4C}"
 EndProject
+Project("{9092AA53-FB77-4645-B42D-1CCCA6BD08BD}") = "RTCompiler", "RTCompiler\RTCompiler.njsproj", "{F825924B-3D59-4FC9-B46B-1EE59713C06B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{54F9E221-BE12-415F-BFB3-343FCA517F4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{54F9E221-BE12-415F-BFB3-343FCA517F4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{54F9E221-BE12-415F-BFB3-343FCA517F4C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F825924B-3D59-4FC9-B46B-1EE59713C06B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F825924B-3D59-4FC9-B46B-1EE59713C06B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F825924B-3D59-4FC9-B46B-1EE59713C06B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F825924B-3D59-4FC9-B46B-1EE59713C06B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

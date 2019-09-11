@@ -44,26 +44,22 @@ export  namespace Interpreter {
     class VarAssigned {
         public var_name: string;
         public value: SGroup;
-
         constructor(_var_name: string, _value: SGroup) {
             this.var_name = _var_name;
             this.value = _value;
         }
         public toString(): string { return this.var_name + ":" + this.value }
     }
-
     type VarAssignedList = VarAssigned[];
 
 
     class MatchResult {
         // public result: boolean
         //public vars: VarAssignedList
-
         public constructor(public result: boolean, public vars: VarAssignedList = []) {
             // this.result = result;
             // this.vars = vars;
         }
-
         public add(other: MatchResult): MatchResult {
             if ((this.result == false) || (other.result == false)) {
                 return new MatchResult(false, [])
@@ -134,17 +130,13 @@ export  namespace Interpreter {
         let m = mstr.split(" ")
         if (xs.length < m.length) return null;
         let ret: MatchResult[] = []
-
         var mterm = m.map(function (x) {
             return termParser(x)
-        });
-
-
+        }); 
         for (let t of combinations(new MatchResult(true, []), xs, mterm)) {
             ret.push(t);
         }
-        return ret
-
+        return ret 
     }
 
 
