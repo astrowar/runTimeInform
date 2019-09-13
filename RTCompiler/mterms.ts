@@ -1,4 +1,8 @@
 ﻿
+ /// <reference path="./atoms.ts" />
+
+import { GTems } from "./atoms";
+
 export namespace UTerm {
     class MatchTerm {
 
@@ -22,6 +26,8 @@ export namespace UTerm {
             this.str = _str;
         }
     }
+
+
 
     class VarAssigned {
         public var_name: string;
@@ -160,15 +166,34 @@ export namespace UTerm {
         readonly txt: string
         constructor(_txt: string) { this.txt = _txt }
         gettext(): string { return this.txt };
+        getGeneralTerm(): GTems.GBase { return null; }
+        isLiteral(): boolean { return false }
     }
 
     class TermCode extends ITerm {
         constructor(_txt: string) { super(_txt) }
+        isLiteral(): boolean {return false}
+        getGeneralTerm(): GTems.GBase
+        {
+            if (this.txt == "true") {
+                return new GTems.LiteralBool("true")
+            }
+
+            if (this.txt == "false") {
+                return new GTems.LiteralBool("false")
+            }
+
+            if (this.txt[0] == "$") {
+                return new GTems.Variable( (this.txt.slice(1)))
+            }
+            return new GTems.Atom(this.txt)
+        }
 
     }
     class TermLiteral extends ITerm {
         constructor(_txt: string) { super(_txt) }
-
+        getGeneralTerm(): GTems.GBase { return new GTems.LiteralStr(this.txt) }
+        isLiteral(): boolean { return true }
     }
 
     export function splitStringInput(x: string): ITerm[] {

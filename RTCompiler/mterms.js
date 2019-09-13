@@ -1,5 +1,7 @@
 "use strict";
+/// <reference path="./atoms.ts" />
 Object.defineProperty(exports, "__esModule", { value: true });
+const atoms_1 = require("./atoms");
 var UTerm;
 (function (UTerm) {
     class MatchTerm {
@@ -139,13 +141,30 @@ var UTerm;
         constructor(_txt) { this.txt = _txt; }
         gettext() { return this.txt; }
         ;
+        getGeneralTerm() { return null; }
+        isLiteral() { return false; }
     }
     UTerm.ITerm = ITerm;
     class TermCode extends ITerm {
         constructor(_txt) { super(_txt); }
+        isLiteral() { return false; }
+        getGeneralTerm() {
+            if (this.txt == "true") {
+                return new atoms_1.GTems.LiteralBool("true");
+            }
+            if (this.txt == "false") {
+                return new atoms_1.GTems.LiteralBool("false");
+            }
+            if (this.txt[0] == "$") {
+                return new atoms_1.GTems.Variable((this.txt.slice(1)));
+            }
+            return new atoms_1.GTems.Atom(this.txt);
+        }
     }
     class TermLiteral extends ITerm {
         constructor(_txt) { super(_txt); }
+        getGeneralTerm() { return new atoms_1.GTems.LiteralStr(this.txt); }
+        isLiteral() { return true; }
     }
     function splitStringInput(x) {
         let state = CODEST.SCODE;

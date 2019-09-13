@@ -3,16 +3,19 @@ import { isUndefined } from "util";
 
 var unify = require("./umain");
  /// <reference path="./mterms.ts" />
-import * as mterms from "./mterms";
+//import * as mterms from "./mterms";
 
+import { UTerm } from "./mterms";
+import { GTems } from "./atoms";
+import { Interp } from "./interp";
 
   type SGroup = string[];
 
 
-type ITerm = mterms.UTerm.ITerm
-var parseString = mterms.UTerm.parseString
-type MatchResult = mterms.UTerm.MatchResult
-var splitStringInput = mterms.UTerm.splitStringInput
+type ITerm = UTerm.ITerm
+var parseString = UTerm.parseString
+type MatchResult = UTerm.MatchResult
+var splitStringInput = UTerm.splitStringInput
 
 
 class Parser {
@@ -22,23 +25,23 @@ class Parser {
 
 }
 
-class Pred {
-    public name: string
-    public args: string []
-    constructor(predname: string, ...arg1 )
-    {
-        this.name = predname;
-        this.args = arg1
-    }
-}
+//class Pred {
+//    public name: string
+//    public args: string []
+//    constructor(predname: string, ...arg1 )
+//    {
+//        this.name = predname;
+//        this.args = arg1
+//    }
+//}
 
  
-class Atom {
-    public name: string 
-    constructor(atm_name: string ) {
-        this.name = atm_name; 
-    }
-}
+ 
+
+ 
+
+ 
+
 
 //let line = "do book as red thing"
 
@@ -64,6 +67,11 @@ class Atom {
 
 namespace SyntaxParser {
 
+
+
+
+  
+
     class Matchfunctior {
         constructor(public mstr: string, public func: any) { }
     }
@@ -84,10 +92,96 @@ namespace SyntaxParser {
         return
     }
 
-    function* genPattens_i(iline: ITerm[], matc: Matchfunctior[]) 
-    {
+    class MFragmentKind {
+        constructor(public txt: string, public optional: boolean)
+        {
+            if (this.optional) {
+                if (this.txt[0] == '(') {
+                    this.txt = this.txt.slice(1, this.txt.length -1)
+                }
+            }
+        }
+    }
+
+    function find_end_term(m: string, j) {
+        let n = m.length
+        let p = 0;
+        for (let i = j; i < n; ++i) {
+            if ((m[i] == ' ') && ( p == 0)) return i
+            if (m[i] == '(') p = p + 1
+            if (m[i] == ')')
+            {
+                if (p ==1) return i+1
+                p = p - 1
+            }
+            
+        }
+        return n
+    }
+
+
+
+    function classifySegments(m: string): MFragmentKind[] {
+        let n = m.length
+        let terms: MFragmentKind[] = []
+        let i = 0
+        let pivot = 0
+        while (i < n) {
+            if (m[i] == '?') {
+                if (i - 1 > pivot)  terms.push(new MFragmentKind(m.slice(pivot, i - 1), false))
+                let j = find_end_term(m, i + 1)
+                terms.push(new MFragmentKind(m.slice(i + 1, j), true))
+                pivot = j
+            }
+            i++
+        }
+        if (n > pivot) terms.push(new MFragmentKind(m.slice(pivot, n), false))
+        return terms
+    }
+
+
+    function* expand_rem(acc: string[], rem: MFragmentKind[]) {
+        if (rem.length == 0)
+        {
+            yield acc.join(" ")
+        }
+        else {
+            let acc_nex: string[] = acc.concat([rem[0].txt])
+            for (var x of expand_rem(acc_nex, rem.slice(1)))     { yield x }            
+            if (rem[0].optional) {
+                for (var x of expand_rem(acc, rem.slice(1)))    { yield x }
+            }
+        }
+    }
+
+    function* expand_i(m : string) {
+        //separa em fix segments e optional  
+        let n = m.length
+        let terms: MFragmentKind[] = classifySegments(m);
+        for (var mx of expand_rem([], terms))            {
+            yield mx 
+        }
+        //yield m
+    }
+
+    function expand(matc: Matchfunctior[]): Matchfunctior[] {
+
+        let ret: Matchfunctior[] = []
 
         for (var [i, m] of matc.entries()) {
+            for (var mii of expand_i(m.mstr)) {
+                ret.push(new Matchfunctior(mii, m.func))
+                }
+        }
+
+        return ret;
+    }
+
+    function* genPattens_i(iline: ITerm[], matc: Matchfunctior[]) 
+    {
+        let matc_ex: Matchfunctior[] = expand(matc)
+
+        for (var [i, m] of matc_ex.entries()) {
             let anskitp = false
             for (var rr of genPattens_ii(iline, m.mstr)) {
                 yield ([rr, m.func])
@@ -97,21 +191,29 @@ namespace SyntaxParser {
         }
     }
 
+
+    function resolve_as(args: ITerm[])
+    {
+        let q = args.map(function (t: ITerm) { return t.getGeneralTerm(); })
+        return q;
+    }
+
+
     function resolve_args(args: ITerm[]) {
         let arg_b = []
         let acc: ITerm[] = []
         let n = args.length
         for (var i = 0; i < n; i++)
         {
-            if (args[i].gettext() == ",") {
-                if (acc.length > 0) arg_b.push(acc.map(function (t: ITerm) { return t.gettext(); }))
+            if (args[i].isLiteral() ==false && args[i].gettext() == ",") {
+                if (acc.length > 0) arg_b.push(resolve_as(acc))
                 acc = []
             }
             else {
                 acc.push(args[i])
             }
         }
-        if (acc.length > 0) arg_b.push(acc.map(function (t: ITerm) { return t.gettext(); }))
+        if (acc.length > 0) arg_b.push(resolve_as(acc))
         return arg_b 
     }
 
@@ -126,77 +228,83 @@ namespace SyntaxParser {
         return true
     }
 
-    function pred_resolve(pname: ITerm[], args: ITerm[]) {
+    function funct_resolve(pname: ITerm[], args: ITerm[]) {
         if (pname.length != 1) return undefined
         let arg_a = resolve_args(args)
 
         if (isUndefined(arg_a)) return undefined
-        if (isValidAtomName(pname)==false ) return undefined         
-        
+        if (isValidAtomName(pname) == false) return undefined
 
-        return new Pred(pname[0].gettext(), ...arg_a)
+        let patm = pname[0].getGeneralTerm()
+
+        return new GTems.Functor(patm.toString(), ...arg_a)
     }
 
-    function* pred_0(args_dict)
+    function* funct_0(args_dict)
     {
-        let pname: ITerm[] = args_dict["$pred"]
+        let pname: ITerm[] = args_dict["$funct"]
+        return pname[0].getGeneralTerm()
         if (isValidAtomName(pname)) {
-            yield new Atom(pname[0].gettext())
+            yield new GTems.Atom(pname[0].gettext())
         }
     }
-    function* pred_1(args_dict)
+    function* funct_1(args_dict)
     { 
-        yield pred_resolve(args_dict["$pred"], args_dict["$A"])
+        yield funct_resolve(args_dict["$funct"], args_dict["$A"])
     }
 
-    function* pred_2(args_dict)
+    function* funct_2(args_dict)
     {
-        let pname: ITerm[] = args_dict["$pred"]
+        let pname: ITerm[] = args_dict["$funct"]
         if (pname.length != 1) return undefined
-        let arg_a = args_dict["$A"].map(function (t: ITerm) {      return t.gettext();       });
-        let arg_b = args_dict["$B"].map(function (t: ITerm) {      return t.gettext();        });
-        yield new Pred(pname[0].gettext(), arg_a, arg_b)        
+        //let arg_a = args_dict["$A"].map(function (t: ITerm) {      return t.gettext();       });
+        //let arg_b = args_dict["$B"].map(function (t: ITerm) { return t.gettext(); });
+
+        let p = funct_resolve(pname , [args_dict["$A"], args_dict["$B"]])
+        if (p != null) yield p
+
+        //yield new GTems.Functor(pname[0].gettext(), arg_a, arg_b)        
     }
 
 
-    function* pred_and(args_dict) {
-        let pname1: ITerm[] = args_dict["$pred1"]
+    function* funct_and(args_dict) {
+        let pname1: ITerm[] = args_dict["$funct1"]
         if (pname1.length != 1) return undefined
-        let pname2: ITerm[] = args_dict["$pred2"]
+        let pname2: ITerm[] = args_dict["$funct2"]
         if (pname2.length != 1) return undefined
         let arg_1 = args_dict["$args1"]
         let arg_2 = args_dict["$args2"]
-        let p1 = pred_resolve(pname1, arg_1)
+        let p1 = funct_resolve(pname1, arg_1)
         if (isUndefined(p1)) return undefined
-        let p2 = pred_resolve(pname2, arg_2)
-        if (isUndefined(p2)) return undefined        
-        yield new Pred("and", p1,p2)
+        let p2 = funct_resolve(pname2, arg_2)
+        if (isUndefined(p2)) return undefined
+        yield new GTems.Functor("and", p1, p2)
     }
 
 
-    function* pred_rem(args_dict) {
-        let pname1: ITerm[] = args_dict["$pred1"]
+    function* funct_rem(args_dict) {
+        let pname1: ITerm[] = args_dict["$funct1"]
         if (pname1.length != 1) return undefined 
         let arg_1 = args_dict["$args1"] 
-        let p1 = pred_resolve(pname1, arg_1)
+        let p1 = funct_resolve(pname1, arg_1)
         if (isUndefined(p1)) return undefined
         for (var pnext of predDecl(args_dict["$rem"]))
         {            
             if (isUndefined(pnext)) continue
-            yield new Pred("and", p1, pnext)
+            yield new GTems.Functor("and", p1, pnext)
         }
         return 
     }
 
-    function* pred_rem_or(args_dict) {
-        let pname1: ITerm[] = args_dict["$pred1"]
+    function* funct_rem_or(args_dict) {
+        let pname1: ITerm[] = args_dict["$funct1"]
         if (pname1.length != 1) return undefined
         let arg_1 = args_dict["$args1"]
-        let p1 = pred_resolve(pname1, arg_1)
+        let p1 = funct_resolve(pname1, arg_1)
         if (isUndefined(p1)) return undefined
         for (var pnext of predDecl(args_dict["$rem"])) {
             if (isUndefined(pnext)) continue
-            yield new Pred("or", p1, pnext)
+            yield new GTems.Functor("or", p1, pnext)
         }
         return
     }
@@ -204,12 +312,12 @@ namespace SyntaxParser {
 
     function* predDecl(args) {
         let basePathens = [
-            new Matchfunctior("$pred1 ( $args1 ) , $pred2 ( $args2 )", pred_and),
-            new Matchfunctior("$pred1 ( $args1 ) , $rem", pred_rem),
-            new Matchfunctior("$pred1 ( $args1 ) | $rem", pred_rem_or),
-            new Matchfunctior("$pred ( $A , $B )", pred_2),
-            new Matchfunctior("$pred ( $A )", pred_1),            
-            new Matchfunctior("$pred", pred_0)
+            new Matchfunctior("$funct1 ( $args1 ) , $funct2 ( $args2 )", funct_and),
+            new Matchfunctior("$funct1 ( $args1 ) , $rem", funct_rem),
+            new Matchfunctior("$funct1 ( $args1 ) | $rem", funct_rem_or),
+            //new Matchfunctior("$funct ( $A , $B )", funct_2),
+            new Matchfunctior("$funct ( $A )", funct_1),            
+            new Matchfunctior("$funct", funct_0)
         ]
         for (var vj of genPattens_i(args, basePathens)) {
             //console.dir(vj, { depth: null })
@@ -254,9 +362,26 @@ namespace SyntaxParser {
         for (var px of predDecl(x))
         {
             console.dir([px, [], []], { depth: null })
-        }
-        
+        } 
     }
+
+
+    function before_x(args_dict)
+    {
+        syntax_x(args_dict)
+    } 
+    function before_xy(args_dict)
+    {
+        syntax_xy(args_dict)
+    }
+
+    function before_xyz(args_dict)
+    {
+        syntax_xyz(args_dict)
+    }
+
+
+
 
     function linesSplit(xcode: string) {
         let n = xcode.length
@@ -292,10 +417,15 @@ namespace SyntaxParser {
 
     export function MatchSyntax(xcode: string) {
 
-        let basePathens = [
-            new Matchfunctior(   "do  $X as  $Y if $Z", syntax_xyz),
-                new Matchfunctior(  "do  $X as  $Y ", syntax_xy),
-                    new Matchfunctior(  "do  $X ", syntax_x)
+        let basePathens = [      
+            new Matchfunctior(  "do  $X as $Y ?(if $Z)", syntax_xyz),
+            new Matchfunctior(  "do  $X as $Y ", syntax_xy),
+            new Matchfunctior("do  $X  ", syntax_x),
+            new Matchfunctior("do  $X  ?.", syntax_x),
+            new Matchfunctior(  "before  $X as  $Y if $Z", before_xyz),
+            new Matchfunctior(  "before  $X as  $Y ", before_xy),
+            new Matchfunctior(  "before  $X ", before_x)
+
         ]
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {
@@ -339,11 +469,41 @@ do Thing($obj),concealed($obj) | visible($obj) as true
           print("Message");
           score := score + 1
       }
+//understand "flash" or "light" as flashlight. 
+do alias("flash","flashlight").
+do alias("light","flashlight") .
 
-     
+do alias("the flashlight",flashlight).
+do state(flashlight,lit|unlit).
+
+do state(flashlight) as unlit.
+
+do action(finding).
+do command("find [something]") as finding.
+
+carry_out  finding(flashlight) as { 
+    if location(player)==location(flashlight) {
+       move( flashlight, player)
+       now( flashlight, lit)
+       say("You grope around in the darkness, find the flashlight and turn it back on.") 
+       action_stop()
+     }
+
+before going(south,Lighted Area) as {
+    say "you need to take the flashlight before traveling into the dark.";
+    action_stop()
+   }  if location(player)!=location(flashlight)  
 `
 
-SyntaxParser.MatchSyntax(rulecodes)
+
+
+let simple = `
+    do mortal($X) as true
+    do human(socrates) as true
+
+`
+
+SyntaxParser.MatchSyntax(simple)
 
 console.log("______________________________")
 
@@ -366,4 +526,19 @@ let ev = unify(c, d)
 console.log(unify(a, b)); // truthy
 console.log(unify(c, d)); // truthy
 console.log( _x.get(ev)); // truthy
-console.log('Hello world');
+console.log('Hello world 4589');
+
+
+
+let term_1 = new GTems.Functor('mortal', [new GTems.Variable('X')])
+let term_2 = new GTems.Functor('human', [new GTems.Atom('socrates')])
+
+let ctx = new Interp.Context()
+ctx.addPredicateFunc(term_1, [])
+ctx.addPredicateFunc(term_2, [])
+
+for (var sol of ctx.query_ar1("human", new GTems.Variable('Z')))   {
+    console.dir(sol, { depth: null })
+}
+
+console.log('end log');
