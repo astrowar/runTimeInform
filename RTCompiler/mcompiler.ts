@@ -42,26 +42,7 @@ class Parser {
 
  
 
-
-//let line = "do book as red thing"
-
-//for (var vq of parseString(line, "do  X as  Y ")) {
-//    let v: MatchResult = <MatchResult>vq 
-//    for (var s of v.entries()) {
-//        console.log( s )
-        
-//    }
-//}
-
-
-//line = "do Device(obj),on(obj) as false if not(contains(obj,bateries)) "
-//for (var vq of parseString(line, "do  X as  Y if Z"))
-//{
-//    let v: MatchResult = <MatchResult>vq
-//    for (var s of v.entries())
-//        console.log(s)
-//}
-
+ 
 
  
 
@@ -320,30 +301,118 @@ namespace SyntaxParser {
             new Matchfunctior("$funct", funct_0)
         ]
         for (var vj of genPattens_i(args, basePathens)) {
-            //console.dir(vj, { depth: null })
+    
             for (var vv of vj[1](vj[0])) {
                 if (isUndefined(vv) == false) yield vv
             }
         }
     }
 
-    function syntax_xyz(args_dict)
+
+    //==============================================================================================
+
+    function* expr_inner(args_dict) {
+        let pname: ITerm[] = args_dict["$X"]
+        if (isUndefined(pname) ) return undefined
+        for (var cy of codebodyMatch(pname)) yield cy        
+    }
+
+    function* expr_and(args_dict) {
+        let x: ITerm[] = args_dict["$X"]
+        let y: ITerm[] = args_dict["$Y"]
+        for (var cx of codebodyMatch(x))
+        {
+            if (isUndefined(cx)) continue
+            for (var cy of codebodyMatch(y)) {
+                if (isUndefined(cy)) continue
+                yield new GTems.Functor("and", cx, cy)
+            }
+        } 
+    }
+
+    function* expr_plus(args_dict) {
+        let x: ITerm[] = args_dict["$X"]
+        let y: ITerm[] = args_dict["$Y"]
+        for (var cx of codebodyMatch(x)) {
+            if (isUndefined(cx)) continue
+            for (var cy of codebodyMatch(y)) {
+                if (isUndefined(cy)) continue
+                yield new GTems.Functor("plus", cx, cy)
+            }
+        }
+    }
+
+
+    function* expr_funct(args_dict) {
+        let fname: ITerm[] = args_dict["$funct"]
+        if (fname.length != 1) return undefined
+
+        let fargs: ITerm[] = args_dict["$args"]
+        let p1 = funct_resolve(fname, fargs)
+        yield p1
+    }
+
+
+    function* expr_atorm_reserv(value: string) {
+        yield new GTems.Atom(value)
+    }
+
+    function* expr_literal(args_dict) {
+        
+        let x: ITerm[] = args_dict["$X"]
+        if (x.length == 1 )
+        {
+           let n = Number(x[0].txt)
+           if (isNaN(n) ==false )     yield new GTems.LiteralNumber(n)
+        }
+
+        yield x[0].getGeneralTerm()
+    }
+    
+
+    function* codebodyMatch(args) {
+        let basePathens = [
+            new Matchfunctior("{ $X }", expr_inner),
+
+            new Matchfunctior("true", (x) => { return expr_atorm_reserv("true") }),
+            new Matchfunctior("false", (x) => { return  expr_atorm_reserv("false") }),
+            new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }) ,
+
+            new Matchfunctior("$X , $Y", expr_and),
+            //new Matchfunctior("$X ; $Y", expr_or),
+             new Matchfunctior("$X + $Y", expr_plus),
+             new Matchfunctior("$funct ( $args )", expr_funct) ,
+             new Matchfunctior("$X ", expr_literal)
+        ]
+        for (var vj of genPattens_i(args, basePathens)) {
+
+            for (var vv of vj[1](vj[0])) {
+                if (isUndefined(vv) == false) yield vv
+            }
+        }
+    }
+
+    function syntax_xyz(args_dict, reFunc)
     {
         let x = args_dict["$X"]
         let y = args_dict["$Y"]
         let z = args_dict["$Z"]
-        for (var px of predDecl(x))
-        {
-            
-             console.dir([px,y,z], { depth: null })
+        for (var px of predDecl(x)) {
+            for (var cy of codeBody(y)) {               
+                console.dir([px, y, z], { depth: null })
+                reFunc(px, cy, z)
+            }
         }
     }
 
     function* codeBody(y) {
-        yield y
+        //maior e mais complexa funcao
+        for (var cy of codebodyMatch(y)) {
+            yield cy
+        }
     }
 
-    function syntax_xy(args_dict)
+    function syntax_xy(args_dict, reFunc)
     {
         let x = args_dict["$X"]
         let y = args_dict["$Y"]
@@ -351,33 +420,35 @@ namespace SyntaxParser {
         {
             for (var cy of codeBody(y))        {
 
-                console.dir([px, cy, []], { depth: null })
+               // console.dir([px, cy, []], { depth: null })
+                reFunc(px, cy, [])
             }
 
         }
     }
-    function syntax_x(args_dict)
+    function syntax_x(args_dict, reFunc)
     {
         let x = args_dict["$X"]
         for (var px of predDecl(x))
         {
-            console.dir([px, [], []], { depth: null })
+            //console.dir([px, [], []], { depth: null })
+            reFunc(px, new GTems.Atom("true"), [])
         } 
     }
 
 
-    function before_x(args_dict)
+    function before_x(args_dict, reFunc)
     {
-        syntax_x(args_dict)
+        syntax_x(args_dict, reFunc)
     } 
-    function before_xy(args_dict)
+    function before_xy(args_dict, reFunc)
     {
-        syntax_xy(args_dict)
+        syntax_xy(args_dict, reFunc)
     }
 
-    function before_xyz(args_dict)
+    function before_xyz(args_dict, reFunc)
     {
-        syntax_xyz(args_dict)
+        syntax_xyz(args_dict, reFunc)
     }
 
 
@@ -415,25 +486,37 @@ namespace SyntaxParser {
     }
     
 
-    export function MatchSyntax(xcode: string) {
+    export function MatchSyntaxDecl(xcode: string , resolutionFunc) {
 
         let basePathens = [      
-            new Matchfunctior(  "do  $X as $Y ?(if $Z)", syntax_xyz),
+            new Matchfunctior(  "do  $X as $Y if $Z", syntax_xyz),
             new Matchfunctior(  "do  $X as $Y ", syntax_xy),
             new Matchfunctior("do  $X  ", syntax_x),
             new Matchfunctior("do  $X  ?.", syntax_x),
             new Matchfunctior(  "before  $X as  $Y if $Z", before_xyz),
             new Matchfunctior(  "before  $X as  $Y ", before_xy),
-            new Matchfunctior(  "before  $X ", before_x)
+            new Matchfunctior("before  $X ", before_x) 
+                       
 
         ]
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {
-            let sline = splitStringInput(iline)
-            //console.log("code line ", splitStringInput(iline))
+            let sline = splitStringInput(iline)           
             for (var vj of genPattens_i(sline, basePathens)) {
-                // console.dir(vj, { depth: null })
-                vj[1](vj[0])
+               
+                vj[1](vj[0], resolutionFunc) 
+            }
+        }
+    }
+
+    export function MatchSyntaxGoal(xcode: string, resolutionFunc)   { 
+        let xlines = linesSplit(xcode)
+        for (var [i, iline] of xlines.entries())
+        {
+            let sline = splitStringInput(iline)
+            for (var px of codebodyMatch(sline)) {
+                let s = resolutionFunc(px)
+                 
             }
         }
     }
@@ -498,12 +581,21 @@ before going(south,Lighted Area) as {
 
 
 let simple = `
-    do mortal($X) as true
-    do human(socrates) as true
+    do fac(1) as 1
+    do fac($x) as $x + 1
+  
 
+    
 `
 
-SyntaxParser.MatchSyntax(simple)
+
+let ctx = new Interp.Context()
+
+SyntaxParser.MatchSyntaxDecl(simple, (x, y, z) => {return ctx.addPredicateFunc(x, y, z)})
+
+console.log("______________________________")
+
+SyntaxParser.MatchSyntaxGoal(" fac(5) ", (x) => { console.dir( ctx.all_query(x ), { depth: null })})
 
 console.log("______________________________")
 
@@ -523,22 +615,16 @@ c === d; // false
 
 let ev = unify(c, d)
 
-console.log(unify(a, b)); // truthy
-console.log(unify(c, d)); // truthy
-console.log( _x.get(ev)); // truthy
-console.log('Hello world 4589');
+ 
 
 
 
-let term_1 = new GTems.Functor('mortal', [new GTems.Variable('X')])
-let term_2 = new GTems.Functor('human', [new GTems.Atom('socrates')])
-
-let ctx = new Interp.Context()
-ctx.addPredicateFunc(term_1, [])
-ctx.addPredicateFunc(term_2, [])
-
-for (var sol of ctx.query_ar1("human", new GTems.Variable('Z')))   {
-    console.dir(sol, { depth: null })
-}
+//let term_1 = new GTems.Functor('mortal', [new GTems.Variable('X')])
+//let term_2 = new GTems.Functor('human', [new GTems.Atom('socrates')]) 
+//ctx.addPredicateFunc(term_1, [], [])
+//ctx.addPredicateFunc(term_2, [], [])
+//for (var sol of ctx.query_ar1("human", new GTems.Variable('Z')))   {
+//    console.dir(sol, { depth: null })
+//}
 
 console.log('end log');

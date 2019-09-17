@@ -74,8 +74,11 @@ export namespace GTems {
     }
 
 
+    export class GValue extends GBase {
+        
+    }
 
-    export class LiteralStr extends GBase{
+    export class LiteralStr extends GValue{
         public value: string
         constructor(lit_str: string) {
             super()
@@ -84,17 +87,17 @@ export namespace GTems {
         toString(): string { return '"' + this.value + '"' }
     }
 
-    class LiteralNumber extends GBase{
-        public value: string
-        constructor(lit_num: string) {
+    export class LiteralNumber extends GValue{
+        public value: number
+        constructor(lit_num: number) {
             super()
             this.value = lit_num;
         }
-        toString(): string { return '#' + this.value }
+        toString(): string { return  this.value.toString() }
     }
 
 
-    export class LiteralBool extends GBase {
+    export class LiteralBool extends GValue {
         public value: string
         constructor(lit_num: string) {
             super()
@@ -104,7 +107,7 @@ export namespace GTems {
     }
 
 
-    class GList extends GBase {
+    class GList extends GValue {
         public items: GBase[]
         constructor(_items: GBase[]) {
             super()

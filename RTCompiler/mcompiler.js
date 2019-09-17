@@ -20,20 +20,6 @@ class Parser {
 //        this.args = arg1
 //    }
 //}
-//let line = "do book as red thing"
-//for (var vq of parseString(line, "do  X as  Y ")) {
-//    let v: MatchResult = <MatchResult>vq 
-//    for (var s of v.entries()) {
-//        console.log( s )
-//    }
-//}
-//line = "do Device(obj),on(obj) as false if not(contains(obj,bateries)) "
-//for (var vq of parseString(line, "do  X as  Y if Z"))
-//{
-//    let v: MatchResult = <MatchResult>vq
-//    for (var s of v.entries())
-//        console.log(s)
-//}
 var SyntaxParser;
 (function (SyntaxParser) {
     class Matchfunctior {
@@ -269,47 +255,127 @@ var SyntaxParser;
             new Matchfunctior("$funct", funct_0)
         ];
         for (var vj of genPattens_i(args, basePathens)) {
-            //console.dir(vj, { depth: null })
             for (var vv of vj[1](vj[0])) {
                 if (util_1.isUndefined(vv) == false)
                     yield vv;
             }
         }
     }
-    function syntax_xyz(args_dict) {
+    //==============================================================================================
+    function* expr_inner(args_dict) {
+        let pname = args_dict["$X"];
+        if (util_1.isUndefined(pname))
+            return undefined;
+        for (var cy of codebodyMatch(pname))
+            yield cy;
+    }
+    function* expr_and(args_dict) {
+        let x = args_dict["$X"];
+        let y = args_dict["$Y"];
+        for (var cx of codebodyMatch(x)) {
+            if (util_1.isUndefined(cx))
+                continue;
+            for (var cy of codebodyMatch(y)) {
+                if (util_1.isUndefined(cy))
+                    continue;
+                yield new atoms_1.GTems.Functor("and", cx, cy);
+            }
+        }
+    }
+    function* expr_plus(args_dict) {
+        let x = args_dict["$X"];
+        let y = args_dict["$Y"];
+        for (var cx of codebodyMatch(x)) {
+            if (util_1.isUndefined(cx))
+                continue;
+            for (var cy of codebodyMatch(y)) {
+                if (util_1.isUndefined(cy))
+                    continue;
+                yield new atoms_1.GTems.Functor("plus", cx, cy);
+            }
+        }
+    }
+    function* expr_funct(args_dict) {
+        let fname = args_dict["$funct"];
+        if (fname.length != 1)
+            return undefined;
+        let fargs = args_dict["$args"];
+        let p1 = funct_resolve(fname, fargs);
+        yield p1;
+    }
+    function* expr_atorm_reserv(value) {
+        yield new atoms_1.GTems.Atom(value);
+    }
+    function* expr_literal(args_dict) {
+        let x = args_dict["$X"];
+        if (x.length == 1) {
+            let n = Number(x[0].txt);
+            if (isNaN(n) == false)
+                yield new atoms_1.GTems.LiteralNumber(n);
+        }
+        yield x[0].getGeneralTerm();
+    }
+    function* codebodyMatch(args) {
+        let basePathens = [
+            new Matchfunctior("{ $X }", expr_inner),
+            new Matchfunctior("true", (x) => { return expr_atorm_reserv("true"); }),
+            new Matchfunctior("false", (x) => { return expr_atorm_reserv("false"); }),
+            new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail"); }),
+            new Matchfunctior("$X , $Y", expr_and),
+            //new Matchfunctior("$X ; $Y", expr_or),
+            new Matchfunctior("$X + $Y", expr_plus),
+            new Matchfunctior("$funct ( $args )", expr_funct),
+            new Matchfunctior("$X ", expr_literal)
+        ];
+        for (var vj of genPattens_i(args, basePathens)) {
+            for (var vv of vj[1](vj[0])) {
+                if (util_1.isUndefined(vv) == false)
+                    yield vv;
+            }
+        }
+    }
+    function syntax_xyz(args_dict, reFunc) {
         let x = args_dict["$X"];
         let y = args_dict["$Y"];
         let z = args_dict["$Z"];
         for (var px of predDecl(x)) {
-            console.dir([px, y, z], { depth: null });
+            for (var cy of codeBody(y)) {
+                console.dir([px, y, z], { depth: null });
+                reFunc(px, cy, z);
+            }
         }
     }
     function* codeBody(y) {
-        yield y;
+        //maior e mais complexa funcao
+        for (var cy of codebodyMatch(y)) {
+            yield cy;
+        }
     }
-    function syntax_xy(args_dict) {
+    function syntax_xy(args_dict, reFunc) {
         let x = args_dict["$X"];
         let y = args_dict["$Y"];
         for (var px of predDecl(x)) {
             for (var cy of codeBody(y)) {
-                console.dir([px, cy, []], { depth: null });
+                // console.dir([px, cy, []], { depth: null })
+                reFunc(px, cy, []);
             }
         }
     }
-    function syntax_x(args_dict) {
+    function syntax_x(args_dict, reFunc) {
         let x = args_dict["$X"];
         for (var px of predDecl(x)) {
-            console.dir([px, [], []], { depth: null });
+            //console.dir([px, [], []], { depth: null })
+            reFunc(px, new atoms_1.GTems.Atom("true"), []);
         }
     }
-    function before_x(args_dict) {
-        syntax_x(args_dict);
+    function before_x(args_dict, reFunc) {
+        syntax_x(args_dict, reFunc);
     }
-    function before_xy(args_dict) {
-        syntax_xy(args_dict);
+    function before_xy(args_dict, reFunc) {
+        syntax_xy(args_dict, reFunc);
     }
-    function before_xyz(args_dict) {
-        syntax_xyz(args_dict);
+    function before_xyz(args_dict, reFunc) {
+        syntax_xyz(args_dict, reFunc);
     }
     function linesSplit(xcode) {
         let n = xcode.length;
@@ -343,9 +409,9 @@ var SyntaxParser;
             xcs.push(xc);
         return xcs;
     }
-    function MatchSyntax(xcode) {
+    function MatchSyntaxDecl(xcode, resolutionFunc) {
         let basePathens = [
-            new Matchfunctior("do  $X as $Y ?(if $Z)", syntax_xyz),
+            new Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new Matchfunctior("do  $X as $Y ", syntax_xy),
             new Matchfunctior("do  $X  ", syntax_x),
             new Matchfunctior("do  $X  ?.", syntax_x),
@@ -356,14 +422,22 @@ var SyntaxParser;
         let xlines = linesSplit(xcode);
         for (var [i, iline] of xlines.entries()) {
             let sline = splitStringInput(iline);
-            //console.log("code line ", splitStringInput(iline))
             for (var vj of genPattens_i(sline, basePathens)) {
-                // console.dir(vj, { depth: null })
-                vj[1](vj[0]);
+                vj[1](vj[0], resolutionFunc);
             }
         }
     }
-    SyntaxParser.MatchSyntax = MatchSyntax;
+    SyntaxParser.MatchSyntaxDecl = MatchSyntaxDecl;
+    function MatchSyntaxGoal(xcode, resolutionFunc) {
+        let xlines = linesSplit(xcode);
+        for (var [i, iline] of xlines.entries()) {
+            let sline = splitStringInput(iline);
+            for (var px of codebodyMatch(sline)) {
+                let s = resolutionFunc(px);
+            }
+        }
+    }
+    SyntaxParser.MatchSyntaxGoal = MatchSyntaxGoal;
 })(SyntaxParser || (SyntaxParser = {}));
 let ancode = `
 do lit($r),Room($r) as true if contains($r,$d), lit($d)
@@ -418,11 +492,16 @@ before going(south,Lighted Area) as {
    }  if location(player)!=location(flashlight)  
 `;
 let simple = `
-    do mortal($X) as true
-    do human(socrates) as true
+    do fac(1) as 1
+    do fac($x) as $x + 1
+  
 
+    
 `;
-SyntaxParser.MatchSyntax(simple);
+let ctx = new interp_1.Interp.Context();
+SyntaxParser.MatchSyntaxDecl(simple, (x, y, z) => { return ctx.addPredicateFunc(x, y, z); });
+console.log("______________________________");
+SyntaxParser.MatchSyntaxGoal(" fac(5) ", (x) => { console.dir(ctx.all_query(x), { depth: null }); });
 console.log("______________________________");
 let _x = unify.variable("x");
 let _y = unify.variable("y");
@@ -434,17 +513,12 @@ var c = { luck: 7, beta: 5 }, d = unify.open({ luck: _x });
 c == d; // false
 c === d; // false
 let ev = unify(c, d);
-console.log(unify(a, b)); // truthy
-console.log(unify(c, d)); // truthy
-console.log(_x.get(ev)); // truthy
-console.log('Hello world 4589');
-let term_1 = new atoms_1.GTems.Functor('mortal', [new atoms_1.GTems.Variable('X')]);
-let term_2 = new atoms_1.GTems.Functor('human', [new atoms_1.GTems.Atom('socrates')]);
-let ctx = new interp_1.Interp.Context();
-ctx.addPredicateFunc(term_1, []);
-ctx.addPredicateFunc(term_2, []);
-for (var sol of ctx.query_ar1("human", new atoms_1.GTems.Variable('Z'))) {
-    console.dir(sol, { depth: null });
-}
+//let term_1 = new GTems.Functor('mortal', [new GTems.Variable('X')])
+//let term_2 = new GTems.Functor('human', [new GTems.Atom('socrates')]) 
+//ctx.addPredicateFunc(term_1, [], [])
+//ctx.addPredicateFunc(term_2, [], [])
+//for (var sol of ctx.query_ar1("human", new GTems.Variable('Z')))   {
+//    console.dir(sol, { depth: null })
+//}
 console.log('end log');
 //# sourceMappingURL=mcompiler.js.map

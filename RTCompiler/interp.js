@@ -35,6 +35,20 @@ var Interp;
         }
     }
     Interp.Solution = Solution;
+    function fuseSolution(a, b) {
+        if (a.state == SolutionState.QFalse)
+            return a;
+        if (b.state == SolutionState.QFalse)
+            return b;
+        let s = new Solution(a.state, []);
+        for (var i in a.var_values) {
+            s.var_values[i] = a.var_values[i];
+        }
+        for (var i in b.var_values) {
+            s.var_values[i] = b.var_values[i];
+        }
+        return s;
+    }
     class SolutionGroup {
         constructor() {
             this.solution = [];
@@ -47,9 +61,24 @@ var Interp;
             return true;
         return false;
     }
+    function isEquallyNumber(x, y) {
+        if (x.value == y.value)
+            return true;
+        return false;
+    }
+    //retorna o valor da variavel em questao .. retorna ATOM ou undefined
     function getBindValue(sol, x) {
         let v = getBindTail(sol, x);
         return getBindVarValue(sol, v);
+    }
+    function getValue(sol, x) {
+        if (x instanceof atoms_1.GTems.Variable) {
+            {
+                let v = getBindTail(sol, x);
+                return getBindVarValue(sol, v);
+            }
+        }
+        return x;
     }
     function getBindVarValue(sol, x) {
         for (var i in sol.var_values) {
@@ -119,6 +148,28 @@ var Interp;
     function bind(sol, x, y) {
         if (sol.state == SolutionState.QFalse)
             return sol; //nem tenta
+        if (util_1.isArray(y))
+            return bind(sol, x, y[0]);
+        if (util_1.isArray(x))
+            return bind(sol, x[0], y);
+        if (x instanceof atoms_1.GTems.LiteralNumber) {
+            if (y instanceof atoms_1.GTems.LiteralNumber) {
+                if (isEquallyNumber(x, y))
+                    return sol;
+                else
+                    return new Solution(SolutionState.QFalse, {});
+            }
+        }
+        if (x instanceof atoms_1.GTems.GValue) {
+            if (y instanceof atoms_1.GTems.Variable) {
+                return bindVar(sol, y, x);
+            }
+        }
+        if (x instanceof atoms_1.GTems.Variable) {
+            if (y instanceof atoms_1.GTems.GValue) {
+                return bindVar(sol, x, y);
+            }
+        }
         if (x instanceof atoms_1.GTems.Atom) {
             if (y instanceof atoms_1.GTems.Atom) {
                 if (isEqually(x, y))
@@ -147,57 +198,187 @@ var Interp;
             this.values = [];
             this.predicades = [];
         }
-        addPredicateFunc(p, code) {
+        addPredicateFunc(p, code, condition) {
             this.predicades.push(new PredicateEntry(p, code));
+            //console.dir(code, { depth: null })
+            return true;
+        }
+        isVar(v) {
+            if (v instanceof atoms_1.GTems.Variable) {
+                return true;
+            }
+            return false;
         }
         addPredicateAtom(v) {
             this.values.push(v);
         }
-        query(functor) {
-        }
-        *query_ar2(f_name, arg1, arg2) {
-            for (var [i, p] of this.predicades.entries()) {
-                if (p.entry.name == f_name) {
-                    let pp = p.entry;
-                    if (pp instanceof atoms_1.GTems.Functor) {
-                        if (pp.args.length == 2) {
-                            let pa0 = pp.args[0];
-                            let pa1 = pp.args[1];
-                            if (util_1.isArray(pa0))
-                                pa0 = pa0[0];
-                            if (util_1.isArray(pa1))
-                                pa1 = pa1[0];
-                            let sol_next = bind(new Solution(SolutionState.QTrue, {}), pa0, arg1);
-                            sol_next = bind(sol_next, pa1, arg2);
-                            if (sol_next.state == SolutionState.QTrue) {
-                                yield sol_next;
-                            }
+        *query_and(sol, q1, q2) {
+            for (var qq of this.query(sol, q1)) {
+                if (qq.state == SolutionState.QTrue) {
+                    for (var qz of this.query(sol, q2)) {
+                        if (qz.state == SolutionState.QTrue) {
+                            yield fuseSolution(qq, qz);
                         }
                     }
                 }
             }
         }
-        *query_ar1(f_name, arg1) {
-            console.log(">>");
+        all_query(q) {
+            let sol = new Solution(SolutionState.QTrue, {});
+            let r = [];
+            for (var qz of this.query(sol, q)) {
+                if (qz.state == SolutionState.QTrue) {
+                    r.push(qz);
+                }
+            }
+            // console.log("solutions:")
+            // console.dir( r, { depth: null })
+            return r;
+        }
+        *query(sol, q) {
+            // console.log("...")
+            // console.dir(q, { depth: null })
+            if (q instanceof atoms_1.GTems.Functor) {
+                if (q.name == "and") {
+                    for (var qq of this.query_and(sol, q.args[0], q.args[1]))
+                        yield qq;
+                    return;
+                }
+                if (q.args.length == 1) {
+                    for (var qx of this.query_ar1(sol, q.name, q.args[0]))
+                        yield qx;
+                }
+                if (q.args.length == 2) {
+                    for (var qy of this.query_ar2(sol, q.name, q.args[0], q.args[1]))
+                        yield qy;
+                }
+            }
+            if (q instanceof atoms_1.GTems.Atom) {
+                if (q.name == "true")
+                    yield new Solution(SolutionState.QTrue, {});
+                if (q.name == "false")
+                    yield new Solution(SolutionState.QFalse, {});
+                if (q.name == "fail")
+                    yield new Solution(SolutionState.QFalse, {});
+                yield new Solution(SolutionState.QFalse, {}); //fail
+            }
+        }
+        *evaluate_query(sol, code) {
+            for (var qin of this.query(sol, code)) {
+                let fsol = fuseSolution(sol, qin);
+                if (fsol.state == SolutionState.QTrue) {
+                    yield fsol;
+                }
+            }
+        }
+        *query_ar2(sol, f_name, _arg1, _arg2) {
+            if (util_1.isArray(_arg1))
+                _arg1 = _arg1[0];
+            if (util_1.isArray(_arg2))
+                _arg2 = _arg2[0];
+            let arg1 = getValue(sol, _arg1);
+            let arg2 = getValue(sol, _arg2);
+            if (util_1.isUndefined(arg1))
+                arg1 = _arg1;
+            if (util_1.isUndefined(arg2))
+                arg2 = _arg2;
             for (var [i, p] of this.predicades.entries()) {
-                console.log("aqui>>");
-                if (p.entry.name == f_name) {
-                    let pp = p.entry;
-                    if (pp instanceof atoms_1.GTems.Functor) {
-                        if (pp.args.length == 1) {
-                            let pa0 = pp.args[0];
-                            if (util_1.isArray(pa0))
-                                pa0 = pa0[0];
-                            let sol_next = bind(new Solution(SolutionState.QTrue, {}), pa0, arg1);
-                            if (sol_next.state == SolutionState.QTrue) {
-                                yield sol_next;
+                if (p.entry.name != f_name)
+                    continue;
+                let pp = p.entry;
+                if (pp instanceof atoms_1.GTems.Functor) {
+                    if (pp.args.length != 2)
+                        continue;
+                    let pa0 = pp.args[0];
+                    if (util_1.isArray(pa0))
+                        pa0 = pa0[0];
+                    let pa1 = pp.args[1];
+                    if (util_1.isArray(pa1))
+                        pa1 = pa1[0];
+                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                    let sol_next = new Solution(SolutionState.QTrue, {});
+                    if (this.isVar(arg1) == false) {
+                        sol_next = bind(sol_next, pa0, arg1);
+                    }
+                    if (this.isVar(arg2) == false) {
+                        sol_next = bind(sol_next, pa1, arg2);
+                    }
+                    if (sol_next.state != SolutionState.QTrue)
+                        continue;
+                    for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
+                        if (sol_next_inner.state != SolutionState.QTrue)
+                            continue;
+                        let sol_n = new Solution(SolutionState.QTrue, {});
+                        sol_n = fuseSolution(sol, sol_n); //just a copy
+                        if (this.isVar(arg1)) //arg1 eh uma variavel ? bind para o resultado 
+                         {
+                            let v_ret = getValue(sol_next_inner, pa0);
+                            if (util_1.isUndefined(v_ret) == false)
+                                sol_n = bind(sol_n, v_ret, arg1);
+                        }
+                        if (sol_n.state != SolutionState.QTrue)
+                            continue;
+                        if (this.isVar(arg2)) //arg1 eh uma variavel ? bind para o resultado 
+                         {
+                            let v_ret = getValue(sol_next_inner, pa1);
+                            if (util_1.isUndefined(v_ret) == false)
+                                sol_n = bind(sol_n, v_ret, arg2);
+                        }
+                        if (sol_n.state != SolutionState.QTrue)
+                            continue;
+                        yield sol_n;
+                    }
+                }
+            }
+        }
+        *query_ar1(sol, f_name, _arg1) {
+            if (util_1.isArray(_arg1))
+                _arg1 = _arg1[0];
+            let arg1 = getValue(sol, _arg1);
+            if (util_1.isUndefined(arg1))
+                arg1 = _arg1;
+            for (var [i, p] of this.predicades.entries()) {
+                if (p.entry.name != f_name)
+                    continue;
+                let pp = p.entry;
+                if (pp instanceof atoms_1.GTems.Functor) {
+                    if (pp.args.length != 1)
+                        continue;
+                    let pa0 = pp.args[0];
+                    if (util_1.isArray(pa0))
+                        pa0 = pa0[0];
+                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                    let sol_next = new Solution(SolutionState.QTrue, {});
+                    if (this.isVar(arg1) == false) {
+                        sol_next = bind(sol_next, pa0, arg1);
+                    }
+                    if (sol_next.state != SolutionState.QTrue)
+                        continue;
+                    for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
+                        if (sol_next_inner.state != SolutionState.QTrue)
+                            continue;
+                        if (this.isVar(arg1) || util_1.isUndefined(arg1)) //arg1 eh uma variavel ? bind para o resultado 
+                         {
+                            let v_ret = getValue(sol_next_inner, pa0);
+                            if (util_1.isUndefined(v_ret) == false) {
+                                let sol_n = bind(sol, v_ret, arg1);
+                                if (sol_n.state == SolutionState.QTrue) {
+                                    yield sol_n;
+                                }
                             }
+                            else {
+                                //valor do argumento continua sem binding .... mas a saida eh valida
+                                yield sol;
+                            }
+                        }
+                        else {
+                            yield sol;
                         }
                     }
                 }
             }
         }
-    }
+    } //class
     Interp.Context = Context;
-})(Interp = exports.Interp || (exports.Interp = {}));
+})(Interp = exports.Interp || (exports.Interp = {})); //namespace
 //# sourceMappingURL=interp.js.map

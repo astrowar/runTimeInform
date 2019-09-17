@@ -65,7 +65,10 @@ var GTems;
         }
     }
     GTems.VariableBind = VariableBind;
-    class LiteralStr extends GBase {
+    class GValue extends GBase {
+    }
+    GTems.GValue = GValue;
+    class LiteralStr extends GValue {
         constructor(lit_str) {
             super();
             this.value = lit_str;
@@ -73,14 +76,15 @@ var GTems;
         toString() { return '"' + this.value + '"'; }
     }
     GTems.LiteralStr = LiteralStr;
-    class LiteralNumber extends GBase {
+    class LiteralNumber extends GValue {
         constructor(lit_num) {
             super();
             this.value = lit_num;
         }
-        toString() { return '#' + this.value; }
+        toString() { return this.value.toString(); }
     }
-    class LiteralBool extends GBase {
+    GTems.LiteralNumber = LiteralNumber;
+    class LiteralBool extends GValue {
         constructor(lit_num) {
             super();
             this.value = lit_num;
@@ -88,7 +92,7 @@ var GTems;
         toString() { return '?' + this.value; }
     }
     GTems.LiteralBool = LiteralBool;
-    class GList extends GBase {
+    class GList extends GValue {
         constructor(_items) {
             super();
             this.items = _items;

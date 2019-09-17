@@ -53,7 +53,6 @@ var UTerm;
     }
     UTerm.MatchResult = MatchResult;
     function isMatch(x, m) {
-        //console.log(x," ",m)
         //return new MatchResult(true)
         if (m instanceof MatchStringLiteral) {
             if (x.length == 1)
@@ -91,7 +90,6 @@ var UTerm;
             if (cq < 0)
                 return false;
         }
-        // console.dir(h, { depth: null })
         return eq == 0;
     }
     function* combinations(acc, xs, ms) {
@@ -157,6 +155,11 @@ var UTerm;
             }
             if (this.txt[0] == "$") {
                 return new atoms_1.GTems.Variable((this.txt.slice(1)));
+            }
+            {
+                let n = Number(this.txt);
+                if (isNaN(n) == false)
+                    return new atoms_1.GTems.LiteralNumber(n);
             }
             return new atoms_1.GTems.Atom(this.txt);
         }

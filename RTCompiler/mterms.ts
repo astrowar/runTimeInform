@@ -65,7 +65,7 @@ export namespace UTerm {
     }
 
     function isMatch(x: ITerm[], m: MatchTerm): MatchResult {
-        //console.log(x," ",m)
+         
         //return new MatchResult(true)
 
 
@@ -106,7 +106,7 @@ export namespace UTerm {
             if (cq < 0) return false
         }
 
-        // console.dir(h, { depth: null })
+        
 
         return eq == 0
     }
@@ -174,7 +174,7 @@ export namespace UTerm {
         constructor(_txt: string) { super(_txt) }
         isLiteral(): boolean {return false}
         getGeneralTerm(): GTems.GBase
-        {
+        { 
             if (this.txt == "true") {
                 return new GTems.LiteralBool("true")
             }
@@ -186,6 +186,12 @@ export namespace UTerm {
             if (this.txt[0] == "$") {
                 return new GTems.Variable( (this.txt.slice(1)))
             }
+
+            {
+            let n = Number(this.txt)
+            if (isNaN(n) ==false )     return new GTems.LiteralNumber(n)
+            }
+
             return new GTems.Atom(this.txt)
         }
 
