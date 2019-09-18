@@ -148,13 +148,16 @@ var UTerm;
         isLiteral() { return false; }
         getGeneralTerm() {
             if (this.txt == "true") {
-                return new atoms_1.GTems.LiteralBool("true");
+                return new atoms_1.GTems.LiteralBool(true);
             }
             if (this.txt == "false") {
-                return new atoms_1.GTems.LiteralBool("false");
+                return new atoms_1.GTems.LiteralBool(false);
             }
             if (this.txt[0] == "$") {
                 return new atoms_1.GTems.Variable((this.txt.slice(1)));
+            }
+            if (this.txt == "!") {
+                return new atoms_1.GTems.Atom("cut");
             }
             {
                 let n = Number(this.txt);
@@ -190,7 +193,7 @@ var UTerm;
                     acc = "";
                     continue;
                 }
-                if ((",;(){}|\n[].").indexOf(c) >= 0) {
+                if ((",;(){}|\n[].+-").indexOf(c) >= 0) {
                     if (acc.length > 0)
                         terms.push(new TermCode(acc));
                     terms.push(new TermCode(c));

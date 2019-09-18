@@ -38,6 +38,13 @@ export namespace GTems {
         public name: string
         constructor(atm_name: string) {
             super()
+            if (atm_name =="true")    { 
+                throw new Error(' invalid atom name '  ); 
+            }
+            if (atm_name =="false")  { 
+                throw new Error(' invalid atom name '  ); 
+            }
+
             this.name = atm_name;
         }
         toString(): string { return this.name       }
@@ -98,10 +105,10 @@ export namespace GTems {
 
 
     export class LiteralBool extends GValue {
-        public value: string
-        constructor(lit_num: string) {
+        public value: boolean
+        constructor(lit_bol: boolean) {
             super()
-            this.value = lit_num;
+            this.value = lit_bol;
         }
         toString(): string { return '?' + this.value  }
     }

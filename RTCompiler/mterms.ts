@@ -176,15 +176,19 @@ export namespace UTerm {
         getGeneralTerm(): GTems.GBase
         { 
             if (this.txt == "true") {
-                return new GTems.LiteralBool("true")
+                return new GTems.LiteralBool(true)
             }
 
             if (this.txt == "false") {
-                return new GTems.LiteralBool("false")
+                return new GTems.LiteralBool(false)
             }
 
             if (this.txt[0] == "$") {
                 return new GTems.Variable( (this.txt.slice(1)))
+            }
+
+            if (this.txt == "!") {
+                return new GTems.Atom("cut")
             }
 
             {
@@ -221,7 +225,7 @@ export namespace UTerm {
                     acc = ""
                     continue
                 }
-                if ((",;(){}|\n[].").indexOf(c) >= 0) {
+                if ((",;(){}|\n[].+-").indexOf(c) >= 0) {
                     if (acc.length > 0) terms.push(new TermCode(acc))
                     terms.push(new TermCode(c))
                     acc = ""

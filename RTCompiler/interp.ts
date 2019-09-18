@@ -15,19 +15,26 @@ export namespace Interp {
     export enum SolutionState {
         QTrue,
         QFalse,
+        QFail,
         QUndefined
     }
+
+
+    function atom_false() { return new GTems.LiteralBool(false) }
+    function atom_true() { return new GTems.LiteralBool(true) }
 
     export class Solution {
         public state: SolutionState = SolutionState.QUndefined
         public var_values: { [name: string]: GTems.GBase } = {}
-        constructor(state: SolutionState, var_values) {
+        public value: GTems.GBase = undefined
+        constructor(state: SolutionState, value: GTems.GBase, var_values) {
             this.state = state
             this.var_values = var_values
+            this.value = value
         }
 
         add(var_name: string, value: GTems.GBase): Solution {
-            let nsol = new Solution(this.state, {})
+            let nsol = new Solution(this.state, this.value, {})
 
             for (var i in this.var_values) {
                 nsol.var_values[i] = this.var_values[i]
@@ -36,15 +43,23 @@ export namespace Interp {
 
             return nsol
         }
+
+        add_value(value: GTems.GBase): Solution {
+            let nsol = new Solution(this.state, value, {})
+            for (var i in this.var_values) {
+                nsol.var_values[i] = this.var_values[i]
+            }
+            return nsol
+        }
     }
 
 
-
+    //mantem o segundo termo como valor
     function fuseSolution(a: Solution, b: Solution) {
         if (a.state == SolutionState.QFalse) return a
         if (b.state == SolutionState.QFalse) return b
 
-        let s = new Solution(a.state, [])
+        let s = new Solution(b.state, b.value, [])
 
         for (var i in a.var_values) {
             s.var_values[i] = a.var_values[i]
@@ -70,7 +85,7 @@ export namespace Interp {
     }
 
     function isEquallyNumber(x: GTems.LiteralNumber, y: GTems.LiteralNumber) {
-        
+
         if (x.value == y.value) return true
         return false;
     }
@@ -142,7 +157,7 @@ export namespace Interp {
         if (isEqually(value_binded, y)) {
             return sol;
         }
-        return new Solution(SolutionState.QFalse, {})
+        return new Solution(SolutionState.QFalse, atom_false(), {})
     }
 
 
@@ -169,7 +184,7 @@ export namespace Interp {
         if (isEqually(x_value, y_value)) {
             return sol;
         }
-        return new Solution(SolutionState.QFalse, {})
+        return new Solution(SolutionState.QFalse, atom_false(), {})
     }
 
 
@@ -181,29 +196,36 @@ export namespace Interp {
         if (isArray(y)) return bind(sol, x, y[0])
         if (isArray(x)) return bind(sol, x[0], y)
 
-            if (x instanceof GTems.LiteralNumber) 
-            {
-                if (y instanceof GTems.LiteralNumber) {
-                    if (isEquallyNumber(x, y))
-                        return sol
-                    else
-                        return new Solution(SolutionState.QFalse, {})
-                }
-            } 
-
-
-
-            if (x instanceof GTems.GValue) {
-                if (y instanceof GTems.Variable) {
-                    return bindVar(sol, y, x)
-                }
+        if (x instanceof GTems.LiteralNumber) {
+            if (y instanceof GTems.LiteralNumber) {
+                if (isEquallyNumber(x, y))
+                    return sol
+                else
+                    return new Solution(SolutionState.QFalse, atom_false(), {})
             }
+        }
 
-            if (x instanceof GTems.Variable) {
-                if (y instanceof GTems.GValue) {
-                    return bindVar(sol, x, y)
-                }
+        if (x instanceof GTems.LiteralBool) {
+            if (y instanceof GTems.LiteralBool) {
+                if ( x.value == y.value)
+                    return sol
+                else
+                    return new Solution(SolutionState.QFalse, atom_false(), {})
             }
+        }
+
+
+        if (x instanceof GTems.GValue) {
+            if (y instanceof GTems.Variable) {
+                return bindVar(sol, y, x)
+            }
+        }
+
+        if (x instanceof GTems.Variable) {
+            if (y instanceof GTems.GValue) {
+                return bindVar(sol, x, y)
+            }
+        }
 
 
 
@@ -212,10 +234,10 @@ export namespace Interp {
                 if (isEqually(x, y))
                     return sol
                 else
-                    return new Solution(SolutionState.QFalse, {})
+                    return new Solution(SolutionState.QFalse, atom_false(), {})
             }
 
-     
+
 
             if (y instanceof GTems.Variable) {
                 return bindVar(sol, y, x)
@@ -232,7 +254,9 @@ export namespace Interp {
             }
         }
 
-        return new Solution(SolutionState.QFalse, {})
+ 
+
+        return new Solution(SolutionState.QFalse, atom_false(), {})
     }
 
 
@@ -263,9 +287,16 @@ export namespace Interp {
 
         public *query_and(sol: Solution, q1: GTems.GBase, q2: GTems.GBase) {
 
-            for (var qq of this.query(sol, q1)) {
+            for (var qq of this.evaluate_query(sol, q1)) {
                 if ((<Solution>qq).state == SolutionState.QTrue) {
-                    for (var qz of this.query(sol, q2)) {
+                    let v = (<Solution>qq).value
+                    if (v instanceof GTems.LiteralBool) {
+                        if (v.value == false) {
+                            yield new Solution(SolutionState.QFalse, atom_false(), {})
+                            continue; //nem tenta o segundo termo
+                        }
+                    }
+                    for (var qz of this.evaluate_query(sol, q2)) {
                         if ((<Solution>qz).state == SolutionState.QTrue) {
                             yield fuseSolution(qq, qz)
                         }
@@ -275,7 +306,7 @@ export namespace Interp {
         }
         public all_query(q: GTems.GBase) {
 
-            let sol = new Solution(SolutionState.QTrue, {})
+            let sol = new Solution(SolutionState.QTrue, atom_true(), {})
 
             let r = []
             for (var qz of this.query(sol, q)) {
@@ -302,72 +333,264 @@ export namespace Interp {
                     return
                 }
                 if (q.args.length == 1) {
-                    for (var qx of this.query_ar1(sol, q.name, q.args[0])) yield qx
+                    for (var qx of this.query_ar1(sol, q.name, q.args[0])) {
+                        yield qx
+                    }
+                    return
 
                 }
                 if (q.args.length == 2) {
-                    for (var qy of this.query_ar2(sol, q.name,q.args[0], q.args[1])) yield qy 
+                    for (var qy of this.query_ar2(sol, q.name, q.args[0], q.args[1])) yield qy
+                    return
                 }
 
             }
 
-            if (q instanceof GTems.Atom) {
-                if (q.name == "true") yield new Solution(SolutionState.QTrue, {})
-                if (q.name == "false") yield new Solution(SolutionState.QFalse, {})
-                if (q.name == "fail") yield new Solution(SolutionState.QFalse, {})
-                yield new Solution(SolutionState.QFalse, {}) //fail
+            if (q instanceof GTems.LiteralBool) {
+                if (q.value == false) yield new Solution(SolutionState.QFalse, q, {})
+                if (q.value == true) yield new Solution(SolutionState.QTrue, q, {})
+                return
             }
+
+
+            if (q instanceof GTems.Atom) {
+                if (q.name == "true") {
+                    yield new Solution(SolutionState.QTrue, q, {})
+                    return
+                }
+                if (q.name == "false") {
+                    yield new Solution(SolutionState.QFalse, q, {})
+                    return
+                }
+                if (q.name == "fail") {
+                    yield new Solution(SolutionState.QFail, q, {})
+                    return
+                }
+
+                yield new Solution(SolutionState.QTrue, q, {}) //fail
+            }
+            if (q instanceof GTems.Variable) {
+                if (this.isVar(q)) {
+                    let qval = getValue(sol, q);
+                    if (isUndefined(qval)) {
+                        yield new Solution(SolutionState.QFalse, qval, {}) //fail                        
+                    }
+                    else {
+                        yield new Solution(SolutionState.QTrue, qval, {})
+                    }
+                    return
+                }
+            }
+
+            if (q instanceof GTems.LiteralNumber) {
+                yield new Solution(SolutionState.QTrue, q, {})
+                return
+            }
+            console.log("undefined term :", q)
+            //throw new Error('Unassigned Term Evaluator');
 
         }
 
 
         *evaluate_query(sol: Solution, code: GTems.GBase) {
 
+            if (code instanceof GTems.Variable) {
+                let code_value = getValue(sol, code)
+                if (isUndefined(code_value)) {
+                    yield new Solution(SolutionState.QFalse, undefined, {})
+                    return
+                }
+            }
+
+            if (code instanceof GTems.LiteralNumber) {
+                yield new Solution(SolutionState.QTrue, code, {})
+                return
+            }
+            if (code instanceof GTems.LiteralBool) {
+                yield new Solution(SolutionState.QTrue, code, {})
+                return
+            }
+
+
+
             for (var qin of this.query(sol, code)) {
                 let fsol = fuseSolution(sol, qin)
                 if (fsol.state == SolutionState.QTrue) {
                     yield fsol;
                 }
+                 
             }
         }
 
 
 
- //buildIn Predicates
+        //buildIn Predicates
 
-buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new Solution(SolutionState.QTrue, {})
-                    if (this.isVar(arg1) ) new Solution(SolutionState.QFalse, {})
-                    if (this.isVar(arg2) ) new Solution(SolutionState.QFalse, {})
+        buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
+            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+            let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
+            if (this.isVar(arg1)) new Solution(SolutionState.QFalse, atom_false(), {})
+            if (this.isVar(arg2)) new Solution(SolutionState.QFalse, atom_false(), {})
 
-                   if ( arg1 instanceof GTems.LiteralNumber )
-                   {
-                   if ( arg2 instanceof GTems.LiteralNumber )
-                   {
-                       return new GTems.LiteralNumber(   arg1.value + arg2.value )
-                   }
+            for (var v1 of this.evaluate_query(sol, arg1)) {
+                for (var v2 of this.evaluate_query(sol, arg2)) {
+                    if (v1.value instanceof GTems.LiteralNumber) {
+                        if (v2.value instanceof GTems.LiteralNumber) {
+                            let r = new GTems.LiteralNumber(v1.value.value + v2.value.value)
+                            return new Solution(SolutionState.QTrue, r, {})
+                        }
+                    }
                 }
-                return  new Solution(SolutionState.QFalse, {})  
             }
 
 
 
+            return new Solution(SolutionState.QFalse, atom_false(), {})
+        }
 
 
-//general call
+        buildIn_minus(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
+            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+            let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
+            if (this.isVar(arg1)) new Solution(SolutionState.QFalse, atom_false(), {})
+            if (this.isVar(arg2)) new Solution(SolutionState.QFalse, atom_false(), {})
+            for (var v1 of this.evaluate_query(sol, arg1)) {
+                for (var v2 of this.evaluate_query(sol, arg2)) {
+                    if (v1.value instanceof GTems.LiteralNumber) {
+                        if (v2.value instanceof GTems.LiteralNumber) {
+                            let r = new GTems.LiteralNumber(v1.value.value - v2.value.value)
+                            return new Solution(SolutionState.QTrue, r, {})
+                        }
+                    }
+                }
+            }
+            return new Solution(SolutionState.QFalse, atom_false(), {})
+        }
+
+
+        buildIn_gt(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
+            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+            let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
+            if (this.isVar(arg1)) new Solution(SolutionState.QFalse, atom_false(), {})
+            if (this.isVar(arg2)) new Solution(SolutionState.QFalse, atom_false(), {})
+            for (var v1 of this.evaluate_query(sol, arg1)) {
+                for (var v2 of this.evaluate_query(sol, arg2)) {
+                    if (v1.value instanceof GTems.LiteralNumber) {
+                        if (v2.value instanceof GTems.LiteralNumber) {
+                            if (v1.value.value > v2.value.value) {
+                                return new Solution(SolutionState.QTrue, true, {})
+                            }
+                            else {
+                                return new Solution(SolutionState.QFalse, false, {})
+                            }
+                        }
+                    }
+                }
+            }
+            return new Solution(SolutionState.QFalse, atom_false(), {})
+        }
+
+
+        buildIn_lt(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
+            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+            let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
+            if (this.isVar(arg1)) new Solution(SolutionState.QFalse, atom_false(), {})
+            if (this.isVar(arg2)) new Solution(SolutionState.QFalse, atom_false(), {})
+            for (var v1 of this.evaluate_query(sol, arg1)) {
+                for (var v2 of this.evaluate_query(sol, arg2)) {
+                    if (v1.value instanceof GTems.LiteralNumber) {
+                        if (v2.value instanceof GTems.LiteralNumber) {
+                            if (v1.value.value < v2.value.value) {
+                                return new Solution(SolutionState.QTrue, true, {})
+                            }
+                            else {
+                                return new Solution(SolutionState.QFalse, false, {})
+                            }
+                        }
+                    }
+                }
+            }
+            return new Solution(SolutionState.QFalse, atom_false(), {})
+        }
+
+
+
+        buildIn_mul(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
+            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+            let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
+            if (this.isVar(arg1)) new Solution(SolutionState.QFalse, atom_false(), {})
+            if (this.isVar(arg2)) new Solution(SolutionState.QFalse, atom_false(), {})
+            for (var v1 of this.evaluate_query(sol, arg1)) {
+                for (var v2 of this.evaluate_query(sol, arg2)) {
+                    if (v1.value instanceof GTems.LiteralNumber) {
+                        if (v2.value instanceof GTems.LiteralNumber) {
+                            let vv = (v1.value.value * v2.value.value)
+                            return new Solution(SolutionState.QTrue, new GTems.LiteralNumber(vv), {})
+
+                        }
+                    }
+                }
+            }
+            return new Solution(SolutionState.QFalse, atom_false(), {})
+        }
+
+
+
+
+        //general call
 
 
         *query_ar2(sol: Solution, f_name: string, _arg1: GTems.GBase, _arg2: GTems.GBase) {
             if (isArray(_arg1)) _arg1 = _arg1[0]
             if (isArray(_arg2)) _arg2 = _arg2[0]
 
-            let arg1 = getValue(sol, _arg1)
-            let arg2 = getValue(sol, _arg2)
+            let arg1 = _arg1
+            let arg2 = _arg2
 
-            if (isUndefined(arg1)) arg1 = _arg1
-            if (isUndefined(arg2)) arg2 = _arg2
+            //if (isUndefined(arg1)) arg1 = _arg1
+            //if (isUndefined(arg2)) arg2 = _arg2
 
+
+            let value_1 = Array.from(this.evaluate_query(sol, _arg1)).filter((x) => x.state == SolutionState.QTrue).map((c) => c.value)
+            if (value_1.length > 0) arg1 = value_1[0]
+            else arg1 = atom_false()
+
+
+            let value_2 = Array.from(this.evaluate_query(sol, _arg2)).filter((x) => x.state == SolutionState.QTrue).map((c) => c.value)
+            if (value_2.length > 0) arg2 = value_2[0]
+            else arg2 = atom_false()
+
+
+            if (f_name == "and") {
+                yield this.query_and(sol, arg1, arg2)
+                return
+            }
+
+
+            if (f_name == "plus") {
+                yield this.buildIn_add(sol, arg1, arg2)
+                return
+            }
+
+            if (f_name == "minus") {
+                yield this.buildIn_minus(sol, arg1, arg2)
+                return
+            }
+
+            if (f_name == ">") {
+                yield this.buildIn_gt(sol, arg1, arg2)
+                return
+            }
+
+            if (f_name == "<") {
+                yield this.buildIn_lt(sol, arg1, arg2)
+                return
+            }
+
+            if (f_name == "*") {
+                yield this.buildIn_mul(sol, arg1, arg2)
+                return
+            }
 
             for (var [i, p] of this.predicades.entries()) {
                 if (p.entry.name != f_name) continue
@@ -378,10 +601,10 @@ buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
                     if (isArray(pa0)) pa0 = pa0[0]
 
                     let pa1 = pp.args[1]
-                    if (isArray(pa1)) pa1 = pa1[0] 
+                    if (isArray(pa1)) pa1 = pa1[0]
 
                     //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new Solution(SolutionState.QTrue, {})
+                    let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
                     if (this.isVar(arg1) == false) { sol_next = bind(sol_next, pa0, arg1) }
                     if (this.isVar(arg2) == false) { sol_next = bind(sol_next, pa1, arg2) }
 
@@ -389,7 +612,7 @@ buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
                     for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
                         if (sol_next_inner.state != SolutionState.QTrue) continue
 
-                        let sol_n = new Solution(SolutionState.QTrue, {})
+                        let sol_n = new Solution(SolutionState.QTrue, atom_true(), {})
                         sol_n = fuseSolution(sol, sol_n) //just a copy 
                         if (this.isVar(arg1))  //arg1 eh uma variavel ? bind para o resultado 
                         {
@@ -403,7 +626,7 @@ buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
                             if (isUndefined(v_ret) == false) sol_n = bind(sol_n, v_ret, arg2)
                         }
                         if (sol_n.state != SolutionState.QTrue) continue
-                        yield sol_n
+                        yield sol_n.add_value(sol_next_inner.value)
                     }
                 }
             }
@@ -418,9 +641,15 @@ buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
 
 
             if (isArray(_arg1)) _arg1 = _arg1[0]
-            let arg1 = getValue(sol, _arg1)
 
-            if (isUndefined(arg1)) arg1 = _arg1
+            let arg1 = _arg1
+
+            let value_1 = Array.from(this.evaluate_query(sol, _arg1)).filter((x) => x.state == SolutionState.QTrue).map((c) => c.value)
+            if (value_1.length > 0) arg1 = value_1[0] 
+            else arg1 = atom_false()
+
+            //let arg1 = getValue(sol, _arg1)
+            //if (isUndefined(arg1)) arg1 = _arg1
 
             for (var [i, p] of this.predicades.entries()) {
                 if (p.entry.name != f_name) continue
@@ -432,7 +661,7 @@ buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
 
 
                     //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new Solution(SolutionState.QTrue, {})
+                    let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
                     if (this.isVar(arg1) == false) { sol_next = bind(sol_next, pa0, arg1) }
 
                     if (sol_next.state != SolutionState.QTrue) continue
@@ -445,20 +674,27 @@ buildIn_add(sol: Solution, arg1: GTems.GBase, arg2: GTems.GBase){
                             if (isUndefined(v_ret) == false) {
                                 let sol_n = bind(sol, v_ret, arg1)
                                 if (sol_n.state == SolutionState.QTrue) {
+                                    sol_n.value = sol_next_inner.value
                                     yield sol_n
                                 }
                             }
                             else {
                                 //valor do argumento continua sem binding .... mas a saida eh valida
-                                yield sol
+
+
+                                yield sol.add_value(sol_next_inner.value)
                             }
                         }
                         else {
-                            yield sol
+
+                            yield sol.add_value(sol_next_inner.value)
+
                         }
                     }
                 }
             }
+
+            //yield new Solution(SolutionState.QFalse, atom_false(), {})
         }
 
 

@@ -32,6 +32,12 @@ var GTems;
     class Atom extends GBase {
         constructor(atm_name) {
             super();
+            if (atm_name == "true") {
+                throw new Error(' invalid atom name ');
+            }
+            if (atm_name == "false") {
+                throw new Error(' invalid atom name ');
+            }
             this.name = atm_name;
         }
         toString() { return this.name; }
@@ -85,9 +91,9 @@ var GTems;
     }
     GTems.LiteralNumber = LiteralNumber;
     class LiteralBool extends GValue {
-        constructor(lit_num) {
+        constructor(lit_bol) {
             super();
-            this.value = lit_num;
+            this.value = lit_bol;
         }
         toString() { return '?' + this.value; }
     }

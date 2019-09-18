@@ -175,6 +175,10 @@ namespace SyntaxParser {
 
     function resolve_as(args: ITerm[])
     {
+        let codeexpr = Array.from(codebodyMatch(args))
+        if (codeexpr.length > 0) return codeexpr[0]
+
+        //aqui ..................esta o problema das EXP dentro das Expo
         let q = args.map(function (t: ITerm) { return t.getGeneralTerm(); })
         return q;
     }
@@ -202,7 +206,7 @@ namespace SyntaxParser {
         if (pname.length != 1) return false
         let pstr = (pname.map(function (t: ITerm) { return t.gettext(); })).join()
         for (var c of pstr) {
-            if (";.,()[]|&".indexOf(c) >= 0) {
+            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
                 return false
             }
         }   
@@ -330,16 +334,37 @@ namespace SyntaxParser {
         } 
     }
 
-    function* expr_plus(args_dict) {
+    function* expr_xy_operator(op_name:string, args_dict) {
         let x: ITerm[] = args_dict["$X"]
         let y: ITerm[] = args_dict["$Y"]
         for (var cx of codebodyMatch(x)) {
             if (isUndefined(cx)) continue
             for (var cy of codebodyMatch(y)) {
                 if (isUndefined(cy)) continue
-                yield new GTems.Functor("plus", cx, cy)
+                yield new GTems.Functor(op_name, cx, cy)
             }
         }
+    }
+
+    function* expr_plus(args_dict) {
+        for (var x of  expr_xy_operator("plus",args_dict)) yield x
+    }
+    function* expr_minus(args_dict) {
+        for (var x of expr_xy_operator("minus", args_dict)) yield x
+    }
+
+    function* expr_GT(args_dict) {
+        for (var x of expr_xy_operator(">", args_dict)) yield x
+    }
+    function* expr_LT(args_dict) {
+        for (var x of expr_xy_operator("<", args_dict)) yield x
+    }
+
+    function* expr_MUL(args_dict) {
+        for (var x of expr_xy_operator("*", args_dict)) yield x
+    }
+    function* expr_DIV(args_dict) {
+        for (var x of expr_xy_operator("/", args_dict)) yield x
     }
 
 
@@ -354,7 +379,9 @@ namespace SyntaxParser {
 
 
     function* expr_atorm_reserv(value: string) {
-        yield new GTems.Atom(value)
+        if (value == "false") yield new GTems.LiteralBool(false)
+        else if (value == "true") yield new GTems.LiteralBool(true)
+        else yield new GTems.Atom(value)
     }
 
     function* expr_literal(args_dict) {
@@ -363,7 +390,10 @@ namespace SyntaxParser {
         if (x.length == 1 )
         {
            let n = Number(x[0].txt)
-           if (isNaN(n) ==false )     yield new GTems.LiteralNumber(n)
+            if (isNaN(n) == false) {
+                yield new GTems.LiteralNumber(n)
+                return
+            }
         }
 
         yield x[0].getGeneralTerm()
@@ -375,20 +405,41 @@ namespace SyntaxParser {
             new Matchfunctior("{ $X }", expr_inner),
 
             new Matchfunctior("true", (x) => { return expr_atorm_reserv("true") }),
-            new Matchfunctior("false", (x) => { return  expr_atorm_reserv("false") }),
+            new Matchfunctior("false", (x) => { return expr_atorm_reserv("false") }),
             new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }) ,
 
             new Matchfunctior("$X , $Y", expr_and),
             //new Matchfunctior("$X ; $Y", expr_or),
-             new Matchfunctior("$X + $Y", expr_plus),
+            new Matchfunctior("$X + $Y", expr_plus),
+            new Matchfunctior("$X - $Y", expr_minus),
+
+            new Matchfunctior("$X > $Y", expr_GT),
+            new Matchfunctior("$X < $Y", expr_LT),
+
+            new Matchfunctior("$X * $Y", expr_MUL),
+            new Matchfunctior("$X / $Y", expr_DIV),
+
+
              new Matchfunctior("$funct ( $args )", expr_funct) ,
              new Matchfunctior("$X ", expr_literal)
         ]
-        for (var vj of genPattens_i(args, basePathens)) {
-
+        for (var vj of genPattens_i(args, basePathens))
+        {
+            let pool = []
             for (var vv of vj[1](vj[0])) {
-                if (isUndefined(vv) == false) yield vv
+                if (isUndefined(vv) == false) {
+                    pool.push(vv)
+                }
+                else {
+                    pool = [] //um termo nao deu certo .. invalida toda sequencia
+                    break
+                }
             }
+
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries()) yield vv
+            if (pool.length > 0 ) break
+            
         }
     }
 
@@ -432,7 +483,7 @@ namespace SyntaxParser {
         for (var px of predDecl(x))
         {
             //console.dir([px, [], []], { depth: null })
-            reFunc(px, new GTems.Atom("true"), [])
+            reFunc(px, new GTems.LiteralBool(true), [])
         } 
     }
 
@@ -581,8 +632,12 @@ before going(south,Lighted Area) as {
 
 
 let simple = `
+    do flip($x,1)  as $x
+    do flip($x,$n) as $n > 1, flip($x +1 ,$n-1)
+ 
+    
     do fac(1) as 1
-    do fac($x) as $x + 1
+    do fac($x) as $x > 2  , $x * fac($x-1)
   
 
     
@@ -595,7 +650,7 @@ SyntaxParser.MatchSyntaxDecl(simple, (x, y, z) => {return ctx.addPredicateFunc(x
 
 console.log("______________________________")
 
-SyntaxParser.MatchSyntaxGoal(" fac(5) ", (x) => { console.dir( ctx.all_query(x ), { depth: null })})
+SyntaxParser.MatchSyntaxGoal(" flip(0 ,6 ) ", (x) => { console.dir( ctx.all_query(x ), { depth: null })})
 
 console.log("______________________________")
 
@@ -606,8 +661,7 @@ var a = [42], b = [42];
 a == b;  // false
 a === b; // false
 
-
-3
+ 
 var c = { luck: 7, beta: 5 }, d = unify.open( { luck: _x   });
 c == d;  // false
 c === d; // false
