@@ -72,7 +72,9 @@ export namespace UTerm {
 
         if (m instanceof MatchStringLiteral) {
             if (x.length == 1)
+            {
                 return new MatchResult(x[0].gettext() === m.str)
+            }
         }
 
         if (m instanceof MatchVar) {

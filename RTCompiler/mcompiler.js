@@ -141,22 +141,57 @@ var SyntaxParser;
         let q = args.map(function (t) { return t.getGeneralTerm(); });
         return q;
     }
+    function isBalanced(x) {
+        let n = x.length;
+        var x_par = 0;
+        var x_bra = 0;
+        var x_str = false;
+        for (var i = 0; i < n; ++i) {
+            if (x[i].txt == ")")
+                x_par = x_par - 1;
+            if (x[i].txt == "(")
+                x_par = x_par + 1;
+            if (x[i].txt == "]")
+                x_bra = x_bra - 1;
+            if (x[i].txt == "[")
+                x_bra = x_bra + 1;
+            if (x[i].txt === '"')
+                x_str = !x_str;
+            if (x_par < 0)
+                return false;
+            if (x_bra < 0)
+                return false;
+        }
+        if (x_par !== 0)
+            return false;
+        if (x_bra !== 0)
+            return false;
+        if (x_str == true)
+            return false;
+        return true;
+    }
     function resolve_args(args) {
+        if (isBalanced(args) == false)
+            return undefined;
         let arg_b = [];
         let acc = [];
         let n = args.length;
-        for (var i = 0; i < n; i++) {
-            if (args[i].isLiteral() == false && args[i].gettext() == ",") {
-                if (acc.length > 0)
-                    arg_b.push(resolve_as(acc));
-                acc = [];
-            }
-            else {
-                acc.push(args[i]);
-            }
+        let args_c = splitTerms(args, ",");
+        for (var [i, ac] of args_c.entries()) {
+            let rac = resolve_as(ac);
+            arg_b.push(rac);
         }
-        if (acc.length > 0)
-            arg_b.push(resolve_as(acc));
+        // for (var i = 0; i < n; i++)
+        // {
+        //     if (args[i].isLiteral() ==false && args[i].gettext() == ",") {
+        //         if (acc.length > 0) arg_b.push(resolve_as(acc))
+        //         acc = []
+        //     }
+        //     else {
+        //         acc.push(args[i])
+        //     }
+        // }
+        // if (acc.length > 0) arg_b.push(resolve_as(acc))
         return arg_b;
     }
     function isValidAtomName(pname) {
@@ -259,11 +294,62 @@ var SyntaxParser;
             new Matchfunctior("$funct", funct_0)
         ];
         for (var vj of genPattens_i(args, basePathens)) {
+            // for (var vv of vj[1](vj[0])) {
+            //     if (isUndefined(vv) == false) 
+            //     {
+            //         yield vv
+            //         break
+            //     }
+            // }
+            let pool = [];
             for (var vv of vj[1](vj[0])) {
-                if (util_1.isUndefined(vv) == false)
-                    yield vv;
+                if (util_1.isUndefined(vv) == false) {
+                    pool.push(vv);
+                }
+                else {
+                    pool = []; //um termo nao deu certo .. invalida toda sequencia
+                    break;
+                }
             }
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries())
+                yield vv;
+            if (pool.length > 0)
+                break;
         }
+    }
+    // Serarate Terms by
+    function splitTerms(x, sep) {
+        let r = [];
+        let acc = [];
+        let n = x.length;
+        var x_par = 0;
+        var x_bra = 0;
+        var x_str = false;
+        for (var i = 0; i < n; ++i) {
+            if (x[i].txt == ")")
+                x_par = x_par - 1;
+            if (x[i].txt == "(")
+                x_par = x_par + 1;
+            if (x[i].txt == "]")
+                x_bra = x_bra - 1;
+            if (x[i].txt == "[")
+                x_bra = x_bra + 1;
+            if (x[i].txt === '"')
+                x_str = !x_str;
+            if (x_bra == 0 && x_par == 0 && x_str == false) {
+                if (x[i].txt === sep) {
+                    if (acc.length > 0)
+                        r.push(acc);
+                    acc = [];
+                    continue;
+                }
+            }
+            acc.push(x[i]);
+        }
+        if (acc.length > 0)
+            r.push(acc);
+        return r;
     }
     //==============================================================================================
     function* expr_inner(args_dict) {
@@ -283,6 +369,19 @@ var SyntaxParser;
                 if (util_1.isUndefined(cy))
                     continue;
                 yield new atoms_1.GTems.Functor("and", cx, cy);
+            }
+        }
+    }
+    function* expr_or(args_dict) {
+        let x = args_dict["$X"];
+        let y = args_dict["$Y"];
+        for (var cx of codebodyMatch(x)) {
+            if (util_1.isUndefined(cx))
+                continue;
+            for (var cy of codebodyMatch(y)) {
+                if (util_1.isUndefined(cy))
+                    continue;
+                yield new atoms_1.GTems.Functor("or", cx, cy);
             }
         }
     }
@@ -323,6 +422,10 @@ var SyntaxParser;
         for (var x of expr_xy_operator("/", args_dict))
             yield x;
     }
+    function* expr_UNIFY(args_dict) {
+        for (var x of expr_xy_operator("unify", args_dict))
+            yield x;
+    }
     function* expr_funct(args_dict) {
         let fname = args_dict["$funct"];
         if (fname.length != 1)
@@ -338,6 +441,25 @@ var SyntaxParser;
             yield new atoms_1.GTems.LiteralBool(true);
         else
             yield new atoms_1.GTems.Atom(value);
+    }
+    function* expr_lst(args_dict) {
+        let x = args_dict["$X"];
+        if (util_1.isUndefined(x)) {
+            yield new atoms_1.GTems.GList([]); //empty list
+            return;
+        }
+        let xs = splitTerms(x, ",");
+        let lst_x = [];
+        for (var [i, xj] of xs.entries()) {
+            for (var cx of codebodyMatch(xj)) {
+                if (util_1.isUndefined(cx)) {
+                    return;
+                }
+                lst_x.push(cx);
+                break;
+            }
+            yield new atoms_1.GTems.GList(lst_x);
+        }
     }
     function* expr_literal(args_dict) {
         let x = args_dict["$X"];
@@ -357,7 +479,7 @@ var SyntaxParser;
             new Matchfunctior("false", (x) => { return expr_atorm_reserv("false"); }),
             new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail"); }),
             new Matchfunctior("$X , $Y", expr_and),
-            //new Matchfunctior("$X ; $Y", expr_or),
+            new Matchfunctior("$X ; $Y", expr_or),
             new Matchfunctior("$X + $Y", expr_plus),
             new Matchfunctior("$X - $Y", expr_minus),
             new Matchfunctior("$X > $Y", expr_GT),
@@ -365,6 +487,9 @@ var SyntaxParser;
             new Matchfunctior("$X * $Y", expr_MUL),
             new Matchfunctior("$X / $Y", expr_DIV),
             new Matchfunctior("$funct ( $args )", expr_funct),
+            new Matchfunctior("[ $X ]", expr_lst),
+            new Matchfunctior("[ ]", expr_lst),
+            new Matchfunctior("$X = $Y", expr_UNIFY),
             new Matchfunctior("$X ", expr_literal)
         ];
         for (var vj of genPattens_i(args, basePathens)) {
@@ -391,10 +516,13 @@ var SyntaxParser;
         let z = args_dict["$Z"];
         for (var px of predDecl(x)) {
             for (var cy of codeBody(y)) {
-                console.dir([px, y, z], { depth: null });
-                reFunc(px, cy, z);
+                for (var cz of codeBody(z)) {
+                    reFunc(px, cy, cz);
+                    return true;
+                }
             }
         }
+        return false;
     }
     function* codeBody(y) {
         //maior e mais complexa funcao
@@ -408,25 +536,29 @@ var SyntaxParser;
         for (var px of predDecl(x)) {
             for (var cy of codeBody(y)) {
                 // console.dir([px, cy, []], { depth: null })
-                reFunc(px, cy, []);
+                reFunc(px, cy, undefined);
+                return true;
             }
         }
+        return false;
     }
     function syntax_x(args_dict, reFunc) {
         let x = args_dict["$X"];
         for (var px of predDecl(x)) {
             //console.dir([px, [], []], { depth: null })
-            reFunc(px, new atoms_1.GTems.LiteralBool(true), []);
+            reFunc(px, new atoms_1.GTems.LiteralBool(true), undefined);
+            return true;
         }
+        return false;
     }
     function before_x(args_dict, reFunc) {
-        syntax_x(args_dict, reFunc);
+        return syntax_x(args_dict, reFunc);
     }
     function before_xy(args_dict, reFunc) {
-        syntax_xy(args_dict, reFunc);
+        return syntax_xy(args_dict, reFunc);
     }
     function before_xyz(args_dict, reFunc) {
-        syntax_xyz(args_dict, reFunc);
+        return syntax_xyz(args_dict, reFunc);
     }
     function linesSplit(xcode) {
         let n = xcode.length;
@@ -474,7 +606,9 @@ var SyntaxParser;
         for (var [i, iline] of xlines.entries()) {
             let sline = splitStringInput(iline);
             for (var vj of genPattens_i(sline, basePathens)) {
-                vj[1](vj[0], resolutionFunc);
+                let has_code = vj[1](vj[0], resolutionFunc);
+                if (has_code)
+                    break;
             }
         }
     }
@@ -485,6 +619,7 @@ var SyntaxParser;
             let sline = splitStringInput(iline);
             for (var px of codebodyMatch(sline)) {
                 let s = resolutionFunc(px);
+                break;
             }
         }
     }
@@ -543,20 +678,16 @@ before going(south,Lighted Area) as {
    }  if location(player)!=location(flashlight)  
 `;
 let simple = `
-    do flip($x,1)  as $x
-    do flip($x,$n) as $n > 1, flip($x +1 ,$n-1)
- 
-    
-    do fac(1) as 1
-    do fac($x) as $x > 2  , $x * fac($x-1)
-  
 
-    
+    do p($x, 0 ) as $x 
+    do p($x,$n) as   p( append($x, a)  , $n-1);p( append($x, b)  , $n-1)    if $n > 0
+    do p($x,$n) as   p( append($x, c) , $n-1) if $n > 0
+    do p($x,$n) as   p( append($x, d) , $n-1) if $n > 0
 `;
 let ctx = new interp_1.Interp.Context();
 SyntaxParser.MatchSyntaxDecl(simple, (x, y, z) => { return ctx.addPredicateFunc(x, y, z); });
 console.log("______________________________");
-SyntaxParser.MatchSyntaxGoal(" flip(0 ,6 ) ", (x) => { console.dir(ctx.all_query(x), { depth: null }); });
+SyntaxParser.MatchSyntaxGoal(" p( [ ] , 2)", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
 console.log("______________________________");
 let _x = unify.variable("x");
 let _y = unify.variable("y");

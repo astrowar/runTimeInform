@@ -4,9 +4,6 @@ const util_1 = require("util");
 var GTems;
 (function (GTems) {
     class GBase {
-        toString() {
-            return "?";
-        }
     }
     GTems.GBase = GBase;
     function isValidAtomName(pstr) {
@@ -26,7 +23,11 @@ var GTems;
             this.name = predname;
             this.args = arg1;
         }
-        toString() { return this.name + "(" + (this.args.map((x) => { x.toString(); })).join(" , ") + ")"; }
+        toString() {
+            let arr = (this.args.map((x) => { return x.toString(); }));
+            return this.name + "(" + arr.join(" , ") + ")";
+        }
+        clone() { return new Functor(this.name), this.args.map((x) => x.clone()); }
     }
     GTems.Functor = Functor;
     class Atom extends GBase {
@@ -38,9 +39,13 @@ var GTems;
             if (atm_name == "false") {
                 throw new Error(' invalid atom name ');
             }
+            if (isValidAtomName(atm_name) == false) {
+                throw new Error('name invalid for atom ' + atm_name);
+            }
             this.name = atm_name;
         }
         toString() { return this.name; }
+        clone() { return new Atom(this.name); }
     }
     GTems.Atom = Atom;
     class Variable extends GBase {
@@ -52,6 +57,7 @@ var GTems;
             this.name = v_name;
         }
         toString() { return "$" + this.name; }
+        clone() { return new Variable(this.name); }
     }
     GTems.Variable = Variable;
     class VariableBind extends GBase {
@@ -69,6 +75,7 @@ var GTems;
                 return r;
             r = r + "==" + this.binded.toString();
         }
+        clone() { return new VariableBind(this.name); }
     }
     GTems.VariableBind = VariableBind;
     class GValue extends GBase {
@@ -80,6 +87,7 @@ var GTems;
             this.value = lit_str;
         }
         toString() { return '"' + this.value + '"'; }
+        clone() { return new LiteralStr(this.value); }
     }
     GTems.LiteralStr = LiteralStr;
     class LiteralNumber extends GValue {
@@ -87,7 +95,11 @@ var GTems;
             super();
             this.value = lit_num;
         }
-        toString() { return this.value.toString(); }
+        toString() {
+            let r = this.value.toString();
+            return r;
+        }
+        clone() { return new LiteralNumber(this.value); }
     }
     GTems.LiteralNumber = LiteralNumber;
     class LiteralBool extends GValue {
@@ -96,6 +108,7 @@ var GTems;
             this.value = lit_bol;
         }
         toString() { return '?' + this.value; }
+        clone() { return new LiteralBool(this.value); }
     }
     GTems.LiteralBool = LiteralBool;
     class GList extends GValue {
@@ -103,7 +116,12 @@ var GTems;
             super();
             this.items = _items;
         }
-        toString() { return "[" + (this.items.map((x) => { x.toString(); })).join(" , ") + "]"; }
+        toString() {
+            let r = "[" + (this.items.map((x) => { return x.toString(); })).join(" , ") + "]";
+            return r;
+        }
+        clone() { return new GList(this.items.map((x) => x.clone())); }
     }
+    GTems.GList = GList;
 })(GTems = exports.GTems || (exports.GTems = {}));
 //# sourceMappingURL=atoms.js.map

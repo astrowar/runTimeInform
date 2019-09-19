@@ -55,8 +55,9 @@ var UTerm;
     function isMatch(x, m) {
         //return new MatchResult(true)
         if (m instanceof MatchStringLiteral) {
-            if (x.length == 1)
+            if (x.length == 1) {
                 return new MatchResult(x[0].gettext() === m.str);
+            }
         }
         if (m instanceof MatchVar) {
             let mv = m;

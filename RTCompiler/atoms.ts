@@ -2,10 +2,9 @@
 
 export namespace GTems {
 
-    export class GBase {
-        toString(): string {
-            return "?"
-        }
+    export abstract class GBase {
+        abstract  toString(): string  
+      abstract   clone( )    ;
     }
 
 
@@ -31,7 +30,12 @@ export namespace GTems {
                 this.args = arg1 
         }
 
-        toString(): string { return this.name + "(" + (this.args.map((x) => { x.toString() })).join(" , ") + ")" }
+        toString(): string 
+        { 
+            let arr = (this.args.map((x) => { return x.toString() }))
+            return this.name + "(" + arr.join(" , ") + ")" 
+       }
+        clone( ) { return new Functor(this.name)  ,this.args.map((x)=>x.clone()) }
     }
      
     export class Atom extends GBase{
@@ -45,9 +49,14 @@ export namespace GTems {
                 throw new Error(' invalid atom name '  ); 
             }
 
+            if (isValidAtomName(atm_name) == false) {
+                throw new Error('name invalid for atom ' + atm_name);
+            }
+
             this.name = atm_name;
         }
         toString(): string { return this.name       }
+        clone( ) { return new Atom(this.name) }
     }
 
     export class Variable extends GBase {
@@ -60,6 +69,7 @@ export namespace GTems {
             this.name = v_name;
         }
         toString(): string { return "$" + this.name  }
+        clone( ) { return new Variable(this.name) }
     }
 
     export class VariableBind extends GBase {
@@ -78,11 +88,13 @@ export namespace GTems {
             if (isUndefined(this.binded)) return r;
             r = r + "==" + this.binded.toString()
         }
+        clone( ) { return new VariableBind(this.name) }
     }
 
 
-    export class GValue extends GBase {
-        
+    export abstract class GValue extends GBase {
+     
+       
     }
 
     export class LiteralStr extends GValue{
@@ -92,6 +104,7 @@ export namespace GTems {
             this.value = lit_str;
         }
         toString(): string { return '"' + this.value + '"' }
+        clone( ) { return new LiteralStr(this.value) }
     }
 
     export class LiteralNumber extends GValue{
@@ -100,7 +113,12 @@ export namespace GTems {
             super()
             this.value = lit_num;
         }
-        toString(): string { return  this.value.toString() }
+        toString(): string 
+        { 
+            let r =   this.value.toString() 
+            return r
+        }
+        clone( ) { return new LiteralNumber(this.value) }
     }
 
 
@@ -111,17 +129,24 @@ export namespace GTems {
             this.value = lit_bol;
         }
         toString(): string { return '?' + this.value  }
+        clone( ) { return new LiteralBool(this.value) }
     }
 
 
-    class GList extends GValue {
+    export  class GList extends GValue {
         public items: GBase[]
         constructor(_items: GBase[]) {
             super()
             this.items = _items;
         }
 
-        toString(): string { return  "[" + (this.items.map((x) => { x.toString() })).join(" , ") + "]" }
+        toString(): string 
+        {
+            let r =  "[" + (this.items.map((x) => { return  x.toString() })).join(" , ") + "]" 
+            return r
+        }
+        clone( ) { return new GList( this.items.map((x)=>x.clone())) }
+ 
     }
 
 }

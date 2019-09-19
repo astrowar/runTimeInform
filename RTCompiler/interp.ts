@@ -5,7 +5,7 @@ import { isUndefined, isArray } from "util";
 export namespace Interp {
 
     class PredicateEntry {
-        constructor(public entry: GTems.Functor | GTems.Atom, public value: GTems.GBase) {
+        constructor(public entry: GTems.Functor | GTems.Atom, public value: GTems.GBase,public condition: GTems.GBase) {
 
         }
     }
@@ -31,6 +31,11 @@ export namespace Interp {
             this.state = state
             this.var_values = var_values
             this.value = value
+
+            if ((value  instanceof GTems.GBase) ==false )
+            {
+                throw new Error('invalid value term');
+            }
         }
 
         add(var_name: string, value: GTems.GBase): Solution {
@@ -50,6 +55,18 @@ export namespace Interp {
                 nsol.var_values[i] = this.var_values[i]
             }
             return nsol
+        }
+
+        toString() : string 
+        {
+          let s = this.value.toString()
+          s += " { "
+          for(var kv in this.var_values)
+          {
+              s += kv.toString() +":"+ this.var_values[kv].toString()+ " "
+          }
+          s += " } "
+          return s
         }
     }
 
@@ -205,6 +222,21 @@ export namespace Interp {
             }
         }
 
+        if (x instanceof GTems.GList) {
+            if (y instanceof GTems.GList)     {
+                    if (x.items.length!= y.items.length)return new Solution(SolutionState.QFalse, atom_false(), {})
+                     let sol_n = fuseSolution(sol,new Solution(SolutionState.QTrue, atom_true(), {}) )
+                     let n = x.items.length 
+                     for(var i =0;i<n;++i){
+                         sol_n =  bind( sol_n, x.items[i], y.items[i])
+                         if (sol_n.state != SolutionState.QTrue) break
+                     }
+                     return sol_n                
+            }
+        }
+
+        
+
         if (x instanceof GTems.LiteralBool) {
             if (y instanceof GTems.LiteralBool) {
                 if ( x.value == y.value)
@@ -267,7 +299,7 @@ export namespace Interp {
         predicades: PredicateEntry[] = []
 
         public addPredicateFunc(p: GTems.Functor, code: any, condition: any): boolean {
-            this.predicades.push(new PredicateEntry(p, code))
+            this.predicades.push(new PredicateEntry(p, code,condition))
             //console.dir(code, { depth: null })
             return true
         }
@@ -285,18 +317,34 @@ export namespace Interp {
         }
 
 
-        public *query_and(sol: Solution, q1: GTems.GBase, q2: GTems.GBase) {
+   
 
+        public *query_append(sol: Solution, q1: GTems.GBase, q2: GTems.GBase) 
+        {
+            if (q1 instanceof GTems.GList) 
+            {
+                let qcopy   = q1.clone()
+                qcopy.items.push( q2)                
+
+                yield fuseSolution(sol , new Solution(SolutionState.QTrue,   qcopy , {}))
+                return
+            }
+          return
+        }
+
+
+        public *query_and(sol: Solution, q1: GTems.GBase, q2: GTems.GBase) {
             for (var qq of this.evaluate_query(sol, q1)) {
-                if ((<Solution>qq).state == SolutionState.QTrue) {
-                    let v = (<Solution>qq).value
+                let qsol =<Solution>qq
+                if (qsol.state == SolutionState.QTrue) {                 
+                    let v = qsol.value
                     if (v instanceof GTems.LiteralBool) {
                         if (v.value == false) {
                             yield new Solution(SolutionState.QFalse, atom_false(), {})
                             continue; //nem tenta o segundo termo
-                        }
+                        }                        
                     }
-                    for (var qz of this.evaluate_query(sol, q2)) {
+                    for (var qz of this.evaluate_query(qsol, q2)) {
                         if ((<Solution>qz).state == SolutionState.QTrue) {
                             yield fuseSolution(qq, qz)
                         }
@@ -304,13 +352,49 @@ export namespace Interp {
                 }
             }
         }
+
+
+        public *query_or(sol: Solution, q1: GTems.GBase, q2: GTems.GBase) {
+            
+            for (var qq of this.evaluate_query(sol, q1)) {
+                if ((<Solution>qq).state == SolutionState.QTrue) {
+                    let v = (<Solution>qq).value
+                    if (v instanceof GTems.LiteralBool) {
+                        if (v.value == false) {
+                            yield new Solution(SolutionState.QFalse, atom_false(), {})                                   
+                            continue                
+                        }
+                    }                    
+                    yield qq                    
+                }
+            }
+
+            //another term
+            for (var qq of this.evaluate_query(sol, q2)) {
+                if ((<Solution>qq).state == SolutionState.QTrue) {
+                    let v = (<Solution>qq).value
+                    if (v instanceof GTems.LiteralBool) {
+                        if (v.value == false) {
+                            yield new Solution(SolutionState.QFalse, atom_false(), {})  
+                            continue
+                        }
+                    }   
+                    yield qq         
+                }
+            }
+        }
+
+
+
         public all_query(q: GTems.GBase) {
 
+           // console.dir(q, { depth: null })
             let sol = new Solution(SolutionState.QTrue, atom_true(), {})
 
             let r = []
-            for (var qz of this.query(sol, q)) {
+            for (var qz of this.query(sol, q)) {                
                 if ((<Solution>qz).state == SolutionState.QTrue) {
+                
                     r.push(qz)
                 }
             }
@@ -329,19 +413,31 @@ export namespace Interp {
             if (q instanceof GTems.Functor) {
                 if (q.name == "and") {
                     for (var qq of this.query_and(sol, q.args[0], q.args[1])) yield qq
-
                     return
                 }
+
+                if (q.name == "or") {
+                    for (var qq of this.query_or(sol, q.args[0], q.args[1])) yield qq
+                    return
+                }
+
+
                 if (q.args.length == 1) {
+                    let r = []
                     for (var qx of this.query_ar1(sol, q.name, q.args[0])) {
-                        yield qx
+                        yield qx                        
                     }
                     return
 
                 }
                 if (q.args.length == 2) {
-                    for (var qy of this.query_ar2(sol, q.name, q.args[0], q.args[1])) yield qy
-                    return
+                    let r = []
+ 
+                    for (var qy of this.query_ar2(sol, q.name, q.args[0], q.args[1])){ 
+                        yield qy
+                        //r.push(qy)
+                    }
+                    return 
                 }
 
             }
@@ -368,6 +464,7 @@ export namespace Interp {
                 }
 
                 yield new Solution(SolutionState.QTrue, q, {}) //fail
+                return 
             }
             if (q instanceof GTems.Variable) {
                 if (this.isVar(q)) {
@@ -386,20 +483,31 @@ export namespace Interp {
                 yield new Solution(SolutionState.QTrue, q, {})
                 return
             }
+
+            if (q instanceof GTems.GList) {
+                yield new Solution(SolutionState.QTrue, q, {})
+                return
+            }
+
+
             console.log("undefined term :", q)
             //throw new Error('Unassigned Term Evaluator');
 
+       
         }
 
+   
 
         *evaluate_query(sol: Solution, code: GTems.GBase) {
 
             if (code instanceof GTems.Variable) {
                 let code_value = getValue(sol, code)
                 if (isUndefined(code_value)) {
-                    yield new Solution(SolutionState.QFalse, undefined, {})
+                    yield new Solution(SolutionState.QTrue, code, {})
                     return
                 }
+                yield new Solution(SolutionState.QTrue, code_value, {}) 
+                return 
             }
 
             if (code instanceof GTems.LiteralNumber) {
@@ -478,10 +586,10 @@ export namespace Interp {
                     if (v1.value instanceof GTems.LiteralNumber) {
                         if (v2.value instanceof GTems.LiteralNumber) {
                             if (v1.value.value > v2.value.value) {
-                                return new Solution(SolutionState.QTrue, true, {})
+                                return new Solution(SolutionState.QTrue,   new GTems.LiteralBool( true ), {})
                             }
                             else {
-                                return new Solution(SolutionState.QFalse, false, {})
+                                return new Solution(SolutionState.QFalse,  new GTems.LiteralBool( false ), {})
                             }
                         }
                     }
@@ -501,10 +609,10 @@ export namespace Interp {
                     if (v1.value instanceof GTems.LiteralNumber) {
                         if (v2.value instanceof GTems.LiteralNumber) {
                             if (v1.value.value < v2.value.value) {
-                                return new Solution(SolutionState.QTrue, true, {})
+                                return new Solution(SolutionState.QTrue, new GTems.LiteralBool( true ), {})
                             }
                             else {
-                                return new Solution(SolutionState.QFalse, false, {})
+                                return new Solution(SolutionState.QFalse, new GTems.LiteralBool( false ), {})
                             }
                         }
                     }
@@ -551,6 +659,11 @@ export namespace Interp {
             //if (isUndefined(arg2)) arg2 = _arg2
 
 
+
+  
+
+
+
             let value_1 = Array.from(this.evaluate_query(sol, _arg1)).filter((x) => x.state == SolutionState.QTrue).map((c) => c.value)
             if (value_1.length > 0) arg1 = value_1[0]
             else arg1 = atom_false()
@@ -560,13 +673,30 @@ export namespace Interp {
             if (value_2.length > 0) arg2 = value_2[0]
             else arg2 = atom_false()
 
+            if (f_name == "unify") {
+                let s = bind(sol, arg1, arg2) 
+                yield s
+                return  
+           }
 
+           if (f_name == "append") {
+        
+            for (var qq of this.query_append(sol, arg1, arg2))    {
+                yield qq
+            }
+            return
+        }
             if (f_name == "and") {
-                yield this.query_and(sol, arg1, arg2)
+                for (var qq of this.query_and(sol, arg1, arg2)) yield qq
                 return
             }
 
-
+/*             if (f_name == "or") 
+            {for(var o_or of this.query_or(sol, arg1, arg2))  {
+                  yield o_or
+                }
+                return
+            } */
             if (f_name == "plus") {
                 yield this.buildIn_add(sol, arg1, arg2)
                 return
@@ -607,6 +737,24 @@ export namespace Interp {
                     let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
                     if (this.isVar(arg1) == false) { sol_next = bind(sol_next, pa0, arg1) }
                     if (this.isVar(arg2) == false) { sol_next = bind(sol_next, pa1, arg2) }
+
+
+                    // testa a condicao de ativacao do predicado
+                    let cond_satisf = true 
+                    if ( isUndefined( p.condition ) ==false ) {
+                        cond_satisf = false  
+                        //testa a condicao
+                        for (var sol_cond of this.evaluate_query(sol_next, p.condition)) {
+                            if (sol_cond.state == SolutionState.QTrue)
+                            {
+                                cond_satisf = true 
+                                break //apenas a primeira true ja serve
+                            }
+                        }
+                    }
+                    if (cond_satisf ==false ) continue  // nem testa o corpo .. proximo termo
+
+
 
                     if (sol_next.state != SolutionState.QTrue) continue
                     for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
@@ -665,6 +813,23 @@ export namespace Interp {
                     if (this.isVar(arg1) == false) { sol_next = bind(sol_next, pa0, arg1) }
 
                     if (sol_next.state != SolutionState.QTrue) continue
+
+                    // testa a condicao de ativacao do predicado
+                    let cond_satisf = true 
+                    if ( isUndefined( p.condition ) ==false  )  {
+                        cond_satisf = false  
+                        //testa a condicao
+                        for (var sol_cond of this.evaluate_query(sol_next, p.condition)) {
+                            if (sol_cond.state == SolutionState.QTrue)
+                            {
+                                cond_satisf = true 
+                                break //apenas a primeira true ja serve
+                            }
+                        }
+                    }
+                    if (cond_satisf ==false ) continue  // nem testa o corpo .. proximo termo
+
+
                     for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
                         if (sol_next_inner.state != SolutionState.QTrue) continue
 

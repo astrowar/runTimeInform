@@ -5,9 +5,10 @@ const util_1 = require("util");
 var Interp;
 (function (Interp) {
     class PredicateEntry {
-        constructor(entry, value) {
+        constructor(entry, value, condition) {
             this.entry = entry;
             this.value = value;
+            this.condition = condition;
         }
     }
     // a clause foi provada .. foi disprovada
@@ -29,6 +30,9 @@ var Interp;
             this.state = state;
             this.var_values = var_values;
             this.value = value;
+            if ((value instanceof atoms_1.GTems.GBase) == false) {
+                throw new Error('invalid value term');
+            }
         }
         add(var_name, value) {
             let nsol = new Solution(this.state, this.value, {});
@@ -44,6 +48,15 @@ var Interp;
                 nsol.var_values[i] = this.var_values[i];
             }
             return nsol;
+        }
+        toString() {
+            let s = this.value.toString();
+            s += " { ";
+            for (var kv in this.var_values) {
+                s += kv.toString() + ":" + this.var_values[kv].toString() + " ";
+            }
+            s += " } ";
+            return s;
         }
     }
     Interp.Solution = Solution;
@@ -173,6 +186,20 @@ var Interp;
                     return new Solution(SolutionState.QFalse, atom_false(), {});
             }
         }
+        if (x instanceof atoms_1.GTems.GList) {
+            if (y instanceof atoms_1.GTems.GList) {
+                if (x.items.length != y.items.length)
+                    return new Solution(SolutionState.QFalse, atom_false(), {});
+                let sol_n = fuseSolution(sol, new Solution(SolutionState.QTrue, atom_true(), {}));
+                let n = x.items.length;
+                for (var i = 0; i < n; ++i) {
+                    sol_n = bind(sol_n, x.items[i], y.items[i]);
+                    if (sol_n.state != SolutionState.QTrue)
+                        break;
+                }
+                return sol_n;
+            }
+        }
         if (x instanceof atoms_1.GTems.LiteralBool) {
             if (y instanceof atoms_1.GTems.LiteralBool) {
                 if (x.value == y.value)
@@ -220,7 +247,7 @@ var Interp;
             this.predicades = [];
         }
         addPredicateFunc(p, code, condition) {
-            this.predicades.push(new PredicateEntry(p, code));
+            this.predicades.push(new PredicateEntry(p, code, condition));
             //console.dir(code, { depth: null })
             return true;
         }
@@ -233,17 +260,27 @@ var Interp;
         addPredicateAtom(v) {
             this.values.push(v);
         }
+        *query_append(sol, q1, q2) {
+            if (q1 instanceof atoms_1.GTems.GList) {
+                let qcopy = q1.clone();
+                qcopy.items.push(q2);
+                yield fuseSolution(sol, new Solution(SolutionState.QTrue, qcopy, {}));
+                return;
+            }
+            return;
+        }
         *query_and(sol, q1, q2) {
             for (var qq of this.evaluate_query(sol, q1)) {
-                if (qq.state == SolutionState.QTrue) {
-                    let v = qq.value;
+                let qsol = qq;
+                if (qsol.state == SolutionState.QTrue) {
+                    let v = qsol.value;
                     if (v instanceof atoms_1.GTems.LiteralBool) {
                         if (v.value == false) {
                             yield new Solution(SolutionState.QFalse, atom_false(), {});
                             continue; //nem tenta o segundo termo
                         }
                     }
-                    for (var qz of this.evaluate_query(sol, q2)) {
+                    for (var qz of this.evaluate_query(qsol, q2)) {
                         if (qz.state == SolutionState.QTrue) {
                             yield fuseSolution(qq, qz);
                         }
@@ -251,7 +288,35 @@ var Interp;
                 }
             }
         }
+        *query_or(sol, q1, q2) {
+            for (var qq of this.evaluate_query(sol, q1)) {
+                if (qq.state == SolutionState.QTrue) {
+                    let v = qq.value;
+                    if (v instanceof atoms_1.GTems.LiteralBool) {
+                        if (v.value == false) {
+                            yield new Solution(SolutionState.QFalse, atom_false(), {});
+                            continue;
+                        }
+                    }
+                    yield qq;
+                }
+            }
+            //another term
+            for (var qq of this.evaluate_query(sol, q2)) {
+                if (qq.state == SolutionState.QTrue) {
+                    let v = qq.value;
+                    if (v instanceof atoms_1.GTems.LiteralBool) {
+                        if (v.value == false) {
+                            yield new Solution(SolutionState.QFalse, atom_false(), {});
+                            continue;
+                        }
+                    }
+                    yield qq;
+                }
+            }
+        }
         all_query(q) {
+            // console.dir(q, { depth: null })
             let sol = new Solution(SolutionState.QTrue, atom_true(), {});
             let r = [];
             for (var qz of this.query(sol, q)) {
@@ -272,15 +337,24 @@ var Interp;
                         yield qq;
                     return;
                 }
+                if (q.name == "or") {
+                    for (var qq of this.query_or(sol, q.args[0], q.args[1]))
+                        yield qq;
+                    return;
+                }
                 if (q.args.length == 1) {
+                    let r = [];
                     for (var qx of this.query_ar1(sol, q.name, q.args[0])) {
                         yield qx;
                     }
                     return;
                 }
                 if (q.args.length == 2) {
-                    for (var qy of this.query_ar2(sol, q.name, q.args[0], q.args[1]))
+                    let r = [];
+                    for (var qy of this.query_ar2(sol, q.name, q.args[0], q.args[1])) {
                         yield qy;
+                        //r.push(qy)
+                    }
                     return;
                 }
             }
@@ -305,6 +379,7 @@ var Interp;
                     return;
                 }
                 yield new Solution(SolutionState.QTrue, q, {}); //fail
+                return;
             }
             if (q instanceof atoms_1.GTems.Variable) {
                 if (this.isVar(q)) {
@@ -322,6 +397,10 @@ var Interp;
                 yield new Solution(SolutionState.QTrue, q, {});
                 return;
             }
+            if (q instanceof atoms_1.GTems.GList) {
+                yield new Solution(SolutionState.QTrue, q, {});
+                return;
+            }
             console.log("undefined term :", q);
             //throw new Error('Unassigned Term Evaluator');
         }
@@ -329,9 +408,11 @@ var Interp;
             if (code instanceof atoms_1.GTems.Variable) {
                 let code_value = getValue(sol, code);
                 if (util_1.isUndefined(code_value)) {
-                    yield new Solution(SolutionState.QFalse, undefined, {});
+                    yield new Solution(SolutionState.QTrue, code, {});
                     return;
                 }
+                yield new Solution(SolutionState.QTrue, code_value, {});
+                return;
             }
             if (code instanceof atoms_1.GTems.LiteralNumber) {
                 yield new Solution(SolutionState.QTrue, code, {});
@@ -399,10 +480,10 @@ var Interp;
                     if (v1.value instanceof atoms_1.GTems.LiteralNumber) {
                         if (v2.value instanceof atoms_1.GTems.LiteralNumber) {
                             if (v1.value.value > v2.value.value) {
-                                return new Solution(SolutionState.QTrue, true, {});
+                                return new Solution(SolutionState.QTrue, new atoms_1.GTems.LiteralBool(true), {});
                             }
                             else {
-                                return new Solution(SolutionState.QFalse, false, {});
+                                return new Solution(SolutionState.QFalse, new atoms_1.GTems.LiteralBool(false), {});
                             }
                         }
                     }
@@ -422,10 +503,10 @@ var Interp;
                     if (v1.value instanceof atoms_1.GTems.LiteralNumber) {
                         if (v2.value instanceof atoms_1.GTems.LiteralNumber) {
                             if (v1.value.value < v2.value.value) {
-                                return new Solution(SolutionState.QTrue, true, {});
+                                return new Solution(SolutionState.QTrue, new atoms_1.GTems.LiteralBool(true), {});
                             }
                             else {
-                                return new Solution(SolutionState.QFalse, false, {});
+                                return new Solution(SolutionState.QFalse, new atoms_1.GTems.LiteralBool(false), {});
                             }
                         }
                     }
@@ -472,10 +553,28 @@ var Interp;
                 arg2 = value_2[0];
             else
                 arg2 = atom_false();
-            if (f_name == "and") {
-                yield this.query_and(sol, arg1, arg2);
+            if (f_name == "unify") {
+                let s = bind(sol, arg1, arg2);
+                yield s;
                 return;
             }
+            if (f_name == "append") {
+                for (var qq of this.query_append(sol, arg1, arg2)) {
+                    yield qq;
+                }
+                return;
+            }
+            if (f_name == "and") {
+                for (var qq of this.query_and(sol, arg1, arg2))
+                    yield qq;
+                return;
+            }
+            /*             if (f_name == "or")
+                        {for(var o_or of this.query_or(sol, arg1, arg2))  {
+                              yield o_or
+                            }
+                            return
+                        } */
             if (f_name == "plus") {
                 yield this.buildIn_add(sol, arg1, arg2);
                 return;
@@ -517,6 +616,20 @@ var Interp;
                     if (this.isVar(arg2) == false) {
                         sol_next = bind(sol_next, pa1, arg2);
                     }
+                    // testa a condicao de ativacao do predicado
+                    let cond_satisf = true;
+                    if (util_1.isUndefined(p.condition) == false) {
+                        cond_satisf = false;
+                        //testa a condicao
+                        for (var sol_cond of this.evaluate_query(sol_next, p.condition)) {
+                            if (sol_cond.state == SolutionState.QTrue) {
+                                cond_satisf = true;
+                                break; //apenas a primeira true ja serve
+                            }
+                        }
+                    }
+                    if (cond_satisf == false)
+                        continue; // nem testa o corpo .. proximo termo
                     if (sol_next.state != SolutionState.QTrue)
                         continue;
                     for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
@@ -573,6 +686,20 @@ var Interp;
                     }
                     if (sol_next.state != SolutionState.QTrue)
                         continue;
+                    // testa a condicao de ativacao do predicado
+                    let cond_satisf = true;
+                    if (util_1.isUndefined(p.condition) == false) {
+                        cond_satisf = false;
+                        //testa a condicao
+                        for (var sol_cond of this.evaluate_query(sol_next, p.condition)) {
+                            if (sol_cond.state == SolutionState.QTrue) {
+                                cond_satisf = true;
+                                break; //apenas a primeira true ja serve
+                            }
+                        }
+                    }
+                    if (cond_satisf == false)
+                        continue; // nem testa o corpo .. proximo termo
                     for (var sol_next_inner of this.evaluate_query(sol_next, p.value)) {
                         if (sol_next_inner.state != SolutionState.QTrue)
                             continue;
