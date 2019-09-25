@@ -227,7 +227,7 @@ export namespace UTerm {
                     acc = ""
                     continue
                 }
-                if ((",;(){}|\n[].+-").indexOf(c) >= 0) {
+                if ((",;(){}|\n[].+-*/!#=><").indexOf(c) >= 0) {
                     if (acc.length > 0) terms.push(new TermCode(acc))
                     terms.push(new TermCode(c))
                     acc = ""

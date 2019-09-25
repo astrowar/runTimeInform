@@ -20,14 +20,14 @@ export namespace GTems {
 
     export class Functor extends GBase {
         public name: string
-        public args: GBase[]
+        public args: GBase[]         
         constructor(predname: string, ...arg1) {
             super()
             if (isValidAtomName(predname) == false) {
                 throw new Error('name invalid for pred ' + predname);
             } 
                 this.name = predname;
-                this.args = arg1 
+                this.args = arg1                 
         }
 
         toString(): string 
@@ -145,8 +145,8 @@ export namespace GTems {
             let r =  "[" + (this.items.map((x) => { return  x.toString() })).join(" , ") + "]" 
             return r
         }
-        clone( ) { return new GList( this.items.map((x)=>x.clone())) }
- 
+        clone( ) { return new GList( this.items.map((x)=>x.clone())) } 
+        
     }
 
 }

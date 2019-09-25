@@ -1,7 +1,7 @@
 ﻿import { start } from "repl";
 import { isUndefined } from "util";
 
-var unify = require("./umain");
+
  /// <reference path="./mterms.ts" />
 //import * as mterms from "./mterms";
 
@@ -544,6 +544,8 @@ namespace SyntaxParser {
             new Matchfunctior("true", (x) => { return expr_atorm_reserv("true") }),
             new Matchfunctior("false", (x) => { return expr_atorm_reserv("false") }),
             new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }) ,
+            new Matchfunctior("done", (x) => { return expr_atorm_reserv("done") }) ,
+            new Matchfunctior("!", (x) => { return expr_atorm_reserv("cut") }) ,
 
             new Matchfunctior("$X , $Y", expr_and),
             new Matchfunctior("$X ; $Y", expr_or),
@@ -584,6 +586,13 @@ namespace SyntaxParser {
             
         }
     }
+    function* codeBody(y) {
+        //maior e mais complexa funcao
+        for (var cy of codebodyMatch(y)) {
+            yield cy
+        }
+    }
+
 
     function syntax_xyz(args_dict, reFunc):boolean
     {
@@ -592,9 +601,8 @@ namespace SyntaxParser {
         let z = args_dict["$Z"]
         for (var px of predDecl(x)) {
             for (var cy of codeBody(y)) { 
-                for (var cz of codeBody(z)) {               
-                
-                reFunc(px, cy, cz)
+                for (var cz of codeBody(z)) {   
+                reFunc(  px, cy, cz, 0 )
                 return true
                 }
             }
@@ -602,12 +610,7 @@ namespace SyntaxParser {
         return false 
     }
 
-    function* codeBody(y) {
-        //maior e mais complexa funcao
-        for (var cy of codebodyMatch(y)) {
-            yield cy
-        }
-    }
+
 
     function syntax_xy(args_dict, reFunc):boolean  
     {
@@ -618,7 +621,7 @@ namespace SyntaxParser {
             for (var cy of codeBody(y))        {
 
                // console.dir([px, cy, []], { depth: null })
-                reFunc(px, cy, undefined)
+                reFunc(px, cy, undefined,0)
                 return true 
             } 
         }
@@ -630,11 +633,50 @@ namespace SyntaxParser {
         for (var px of predDecl(x))
         {
             //console.dir([px, [], []], { depth: null })
-            reFunc(px, new GTems.LiteralBool(true), undefined)
+            reFunc(px, new GTems.LiteralBool(true), undefined,0)
             return true 
         } 
         return false 
     }
+
+    function unless_xyz(args_dict, reFunc):boolean {
+        return syntax_xyz(args_dict , (p,body,cond,pr) => {  p.name = "ULS"+p.name; reFunc( p,body,cond, pr-1000) })
+    }
+
+    function unless_xy(args_dict, reFunc):boolean {
+        return syntax_xy(args_dict , (p,body,cond,pr) => {  p.name = "ULS"+p.name;  reFunc(p,body,cond, pr-1000) })
+    }
+
+    function unless_x(args_dict, reFunc):boolean {
+        return syntax_x(args_dict , (p,body,cond,pr) => {  p.name = "ULS"+p.name; reFunc( p,body,cond, pr-1000) })
+    }
+
+
+
+    function syntax_xyz_low(args_dict, reFunc):boolean {
+        return syntax_xyz(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr-1000) })
+    }
+
+    function syntax_xy_low(args_dict, reFunc):boolean {
+        return syntax_xy(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr-1000) })
+    }
+
+    function syntax_x_low(args_dict, reFunc):boolean {
+        return syntax_x(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr-1000) })
+    }
+
+    function syntax_xyz_high(args_dict, reFunc):boolean {
+        return syntax_xyz(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr+1000) })
+    }
+
+    function syntax_xy_high(args_dict, reFunc):boolean {
+        return syntax_xy(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr+1000) })
+    }
+
+    function syntax_x_high(args_dict, reFunc):boolean {
+        return syntax_x(args_dict , (p,body,cond,pr) => {  reFunc(p,body,cond, pr+1000) })
+    }
+
 
 
     function before_x(args_dict, reFunc) :boolean
@@ -688,11 +730,31 @@ namespace SyntaxParser {
 
     export function MatchSyntaxDecl(xcode: string , resolutionFunc) {
 
-        let basePathens = [      
+        let basePathens = [  
+            new Matchfunctior(  "do -  $X as $Y if $Z", syntax_xyz_low),
+            new Matchfunctior(  "do -  $X as $Y ", syntax_xy_low),            
+            new Matchfunctior(  "do -  $X  ", syntax_x_low),
+            
+            new Matchfunctior(  "do +  $X as $Y if $Z", syntax_xyz_high),
+            new Matchfunctior(  "do +  $X as $Y ", syntax_xy_high),            
+            new Matchfunctior(  "do +  $X  ", syntax_x_high),     
+            
             new Matchfunctior(  "do  $X as $Y if $Z", syntax_xyz),
             new Matchfunctior(  "do  $X as $Y ", syntax_xy),
-            new Matchfunctior("do  $X  ", syntax_x),
+            new Matchfunctior(  "do  $X  ", syntax_x),
+
+            new Matchfunctior(  "do  $X as $Y if $Z", syntax_xyz),
+            new Matchfunctior(  "do  $X as $Y ", syntax_xy),
+            new Matchfunctior(  "do  $X  ", syntax_x),
+
+            new Matchfunctior(  "unless  $X as $Y if $Z", unless_xyz),
+            new Matchfunctior(  "unless  $X as $Y ", unless_xy),
+            new Matchfunctior(  "unless  $X  ", unless_x),
+
+            
             new Matchfunctior("do  $X  ?.", syntax_x),
+
+
             new Matchfunctior(  "before  $X as  $Y if $Z", before_xyz),
             new Matchfunctior(  "before  $X as  $Y ", before_xy),
             new Matchfunctior("before  $X ", before_x) 
@@ -781,41 +843,50 @@ before going(south,Lighted Area) as {
    }  if location(player)!=location(flashlight)  
 `
 
+let prices =`
 
+    do price_contents($obj) as {  $contents = findall($x, inside($x ,$obj)) ,  maplist( price, $contents, $prices ) , sum($prices)   }  if container($obj)
+
+    const price_teasure as 10
+    const price_to_clean as 2
+
+    do- price($obj) as 0
+    do price($obj) as price_teasure if Teasure(obj)    
+    do price($obj) as { price($obj) + price_contents($obj)  }  if Container($obj)
+    do price($obj) as { price($obj) - price_to_clean }  if dirt($obj)
+    do+ price($obj) as {  max( 0 , price($obj) )  } 
+    
+
+
+    `
 
 let simple = `
 
-    do p($x, 0 ) as $x 
-    do p($x,$n) as   p( append($x, a)  , $n-1);p( append($x, b)  , $n-1)    if $n > 0
-    do p($x,$n) as   p( append($x, c) , $n-1) if $n > 0
-    do p($x,$n) as   p( append($x, d) , $n-1) if $n > 0
+do sum($lst) as head($h,$lst),tail($t,$lst), $h + sum($t)
+do sum([]) as 0
+do r(a,b) as [a,b]
+do r(b,c) as [b,c]
+do r(c,d) as [c,d]
+do r(a,e) as [a,e]
+do r(e,d) as [e,d]
+
+unless r($x,$y) as  $a = r($x,$z), $b =r($z,$y) , [$a,$b]  
+ 
+
 `
 
 
 let ctx = new Interp.Context()
 
-SyntaxParser.MatchSyntaxDecl(simple, (x, y, z) => {return ctx.addPredicateFunc(x, y, z)})
+SyntaxParser.MatchSyntaxDecl(simple, (x, y, z, prio) => {return ctx.addPredicateFunc(x, y, z,prio)})
 
 console.log("______________________________")
  
-SyntaxParser.MatchSyntaxGoal(" p( [ ] , 2)", (x) => {   console.dir(ctx.all_query(x).map((s: Interp.Solution) => { return  s.toString() }), { depth: null }) })
+SyntaxParser.MatchSyntaxGoal("r(a,d)   ", (x) => {   console.dir(ctx.all_query(x).map((s: Interp.Solution) => { return  s.toString() }), { depth: null }) })
 
 console.log("______________________________")
 
-let _x = unify.variable("x")
-let _y = unify.variable("y")
 
-var a = [42], b = [42];
-a == b;  // false
-a === b; // false
-
- 
-var c = { luck: 7, beta: 5 }, d = unify.open( { luck: _x   });
-c == d;  // false
-c === d; // false
-
-
-let ev = unify(c, d)
 
  
 
