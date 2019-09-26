@@ -425,6 +425,10 @@ var SyntaxParser;
         for (var x of expr_xy_operator("unify", args_dict))
             yield x;
     }
+    function* expr_EQUAL(args_dict) {
+        for (var x of expr_xy_operator("equal", args_dict))
+            yield x;
+    }
     function* expr_funct(args_dict) {
         let fname = args_dict["$funct"];
         if (fname.length != 1)
@@ -481,6 +485,8 @@ var SyntaxParser;
             new Matchfunctior("!", (x) => { return expr_atorm_reserv("cut"); }),
             new Matchfunctior("$X , $Y", expr_and),
             new Matchfunctior("$X ; $Y", expr_or),
+            new Matchfunctior("$X = = $Y", expr_EQUAL),
+            new Matchfunctior("$X = $Y", expr_UNIFY),
             new Matchfunctior("$X + $Y", expr_plus),
             new Matchfunctior("$X - $Y", expr_minus),
             new Matchfunctior("$X > $Y", expr_GT),
@@ -490,7 +496,6 @@ var SyntaxParser;
             new Matchfunctior("$funct ( $args )", expr_funct),
             new Matchfunctior("[ $X ]", expr_lst),
             new Matchfunctior("[ ]", expr_lst),
-            new Matchfunctior("$X = $Y", expr_UNIFY),
             new Matchfunctior("$X ", expr_literal)
         ];
         for (var vj of genPattens_i(args, basePathens)) {
@@ -735,29 +740,14 @@ let prices = `
     `;
 let simple = `
 
-do sum($lst) as head($h,$lst),tail($t,$lst), $h + sum($t)
-do sum([]) as 0
-do r(a,b) as [a,b]
-do r(b,c) as [b,c]
-do r(c,d) as [c,d]
-do r(a,e) as [a,e]
-do r(e,d) as [e,d]
-
-unless r($x,$y) as  $a = r($x,$z), $b =r($z,$y) , [$a,$b]  
+do f([],$x,$x) .
  
-
+ 
 `;
 let ctx = new interp_1.Interp.Context();
 SyntaxParser.MatchSyntaxDecl(simple, (x, y, z, prio) => { return ctx.addPredicateFunc(x, y, z, prio); });
 console.log("______________________________");
-SyntaxParser.MatchSyntaxGoal("r(a,d)   ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
+SyntaxParser.MatchSyntaxGoal(" f( [],1,$u)   ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
 console.log("______________________________");
-//let term_1 = new GTems.Functor('mortal', [new GTems.Variable('X')])
-//let term_2 = new GTems.Functor('human', [new GTems.Atom('socrates')]) 
-//ctx.addPredicateFunc(term_1, [], [])
-//ctx.addPredicateFunc(term_2, [], [])
-//for (var sol of ctx.query_ar1("human", new GTems.Variable('Z')))   {
-//    console.dir(sol, { depth: null })
-//}
 console.log('end log');
 //# sourceMappingURL=mcompiler.js.map

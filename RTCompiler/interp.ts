@@ -37,7 +37,7 @@ export namespace Interp {
     {
         public  callStack : CallItem[] = []
         constructor(  ) { }
-        contains  ( unique_name:string ,arg0: GTems.GBase=undefined , arg1: GTems.GBase =undefined, arg2: GTems.GBase =undefined ):boolean
+        contains  ( unique_name:string ,arg0: GTems.GBase=undefined , arg1: GTems.GBase =undefined, arg2: GTems.GBase =undefined, arg3: GTems.GBase =undefined  ):boolean
         {
            for( var  [i,cv] of this.callStack.entries())
            {
@@ -46,15 +46,18 @@ export namespace Interp {
                  if (isUndefined(arg0) && cv.arg.length >0  ) continue; //arridade nao bate, cv eh menor que o requisitado
                  if (isUndefined(arg1) && cv.arg.length >1 ) continue; //arridade nao bate
                  if (isUndefined(arg2) && cv.arg.length >2 ) continue; //arridade nao bate
+                 if (isUndefined(arg3) && cv.arg.length >3 ) continue; //arridade nao bate
 
                  if ( isUndefined( arg0 )==false  && cv.arg.length < 1  ) continue // cv eh  maior do que o requisitado
                  if ( isUndefined( arg1 )==false  && cv.arg.length < 2  ) continue
                  if ( isUndefined( arg2 )==false  && cv.arg.length < 3  ) continue
+                 if ( isUndefined( arg3 )==false  && cv.arg.length < 4  ) continue
 
                  
                  if ( isUndefined( arg0 )==false )   if ( isEqually( cv.arg[0] , arg0) ==false) continue 
                  if ( isUndefined( arg1 )==false )   if ( isEqually( cv.arg[1] , arg1) ==false) continue 
                  if ( isUndefined( arg2 )==false )   if ( isEqually( cv.arg[2] , arg2) ==false) continue 
+                 if ( isUndefined( arg3 )==false )   if ( isEqually( cv.arg[3] , arg3) ==false) continue 
 
                return true
            }
@@ -69,16 +72,18 @@ export namespace Interp {
         }
 
 
-        pushCall( unique_name:string ,arg0: GTems.GBase=undefined , arg1: GTems.GBase =undefined, arg2: GTems.GBase =undefined):QueryStack 
+        pushCall( unique_name:string ,arg0: GTems.GBase=undefined , arg1: GTems.GBase =undefined, arg2: GTems.GBase =undefined, arg3: GTems.GBase =undefined):QueryStack 
         {
             let argv =[]
             if (isUndefined(arg0) ==false  ) argv.push(arg0)
             if (isUndefined(arg1) ==false ) argv.push(arg1)
             if (isUndefined(arg2) ==false ) argv.push(arg2)
+            if (isUndefined(arg3) ==false ) argv.push(arg3)
 
             if (isUndefined(arg1) ==false && (isUndefined(arg0) )) throw new Error("invalid call arguments")
             if (isUndefined(arg2) ==false && (isUndefined(arg0) )) throw new Error("invalid call arguments")
             if (isUndefined(arg2) ==false && (isUndefined(arg1) )) throw new Error("invalid call arguments")
+            if (isUndefined(arg3) ==false && (isUndefined(arg2) )) throw new Error("invalid call arguments")
             
             let c = new CallItem(unique_name,argv)
             let s = this.clone()
@@ -280,7 +285,7 @@ export namespace Interp {
 
     function bindVarVar(sol: Solution, x: GTems.Variable, y: GTems.Variable): Solution {
 
-
+       if (x.name == y.name) return sol
 
         let xx: GTems.Variable = getBindTail(sol, x)
         let yy: GTems.Variable = getBindTail(sol, y)
@@ -455,7 +460,7 @@ export namespace Interp {
             let unique_name = p.name + this.predicades_id.toString()
             this.predicades_id++;
             
-            
+            console.log(code)
 
             this.predicades.unshift(new PredicateEntry(unique_name, p, code,condition,prioridade))
            
@@ -588,20 +593,24 @@ export namespace Interp {
                 }
 
 
-                if (q.args.length == 1) {
-                    let r = []                    
+                if (q.args.length == 1) {                    
                     for (var qx of this.query_ar1(stk,sol, q.name, q.args[0])) {                        
                         yield qx                                             
                     }
                     return
 
                 }
-                if (q.args.length == 2) {
-                    let r = []
- 
+
+                if (q.args.length == 2) {                    
                     for (var qy of this.query_ar2(stk,sol, q.name, q.args[0], q.args[1])){ 
-                        yield qy
-                        //r.push(qy)
+                        yield qy                        
+                    }
+                    return 
+                }
+
+                if (q.args.length == 3) {                    
+                    for (var qz of this.query_ar3(stk,sol, q.name, q.args[0], q.args[1] , q.args[2]  )){ 
+                        yield qz 
                     }
                     return 
                 }
@@ -962,8 +971,170 @@ export namespace Interp {
         //general call
 
 
-        public *query_ar2(stk:QueryStack,sol: Solution, f_name: string, _arg1: GTems.GBase,_arg2: GTems.GBase) {
 
+        public *query_ar3(stk:QueryStack,sol: Solution, f_name: string, _arg1: GTems.GBase,_arg2: GTems.GBase,_arg3: GTems.GBase) {
+            let hasY:boolean =false  
+            for (var s of this.query_ar3_inner(stk,sol,f_name,_arg1,_arg2,_arg3) ) {
+                yield s
+                if (isValidSolution(s)) hasY= true 
+            }
+            if (hasY ==false && f_name.startsWith("ULS")==false   )
+            {
+                for (var sq of this.query_ar3_inner(stk,sol,"ULS"+f_name,_arg1,_arg2,_arg3) ) {
+                    yield sq                   
+                }   
+            }
+            return 
+        }
+
+        *query_ar3_inner(stk:QueryStack,sol: Solution, f_name: string, _arg1: GTems.GBase, _arg2: GTems.GBase, _arg3: GTems.GBase) {
+            for(var x1 of  this.evaluate_query(stk,sol, _arg1)){ 
+                if(isValidSolution(x1)){
+                       let nsol =   fuseSolution(sol,x1)                       
+                       for(var x2 of  this.evaluate_query(stk,nsol, _arg2)){ 
+                        if(isValidSolution(x2)){
+                               let nsol2 =   fuseSolution(nsol,x2)           
+                               for(var x3 of  this.evaluate_query(stk,nsol2, _arg3)){ 
+                                    if(isValidSolution(x3)){                                    
+                                        let nsol3 = fuseSolution(nsol2,x3)           
+                                            for(var z of  this.query_ar3_inner_argv(stk,nsol3, f_name, x1.value,x2.value , x3.value))
+                                            {
+                                                yield z
+                                            }
+                                    }
+                               }
+                        }         
+                        }
+                }
+            }
+        }
+
+        *query_ar3_inner_argv(stk:QueryStack,sol: Solution, f_name: string, _arg1: GTems.GBase, _arg2: GTems.GBase,_arg3: GTems.GBase) {
+            if (isArray(_arg1)) _arg1 = _arg1[0]
+            if (isArray(_arg2)) _arg2 = _arg2[0]
+            if (isArray(_arg3)) _arg3 = _arg3[0]
+
+            let arg1 = _arg1
+            let arg2 = _arg2 
+            let arg3 = _arg3 
+ 
+
+            let hasFound = false 
+            let query_satisf:Boolean = false 
+            for (var [i, p] of this.predicades.entries()) {
+
+               // if (query_satisf)  continue
+
+                if (p.entry.name != f_name) continue
+                let pp = p.entry;
+                if (pp instanceof GTems.Functor) {
+                    hasFound =true 
+                    if (pp.args.length != 3) continue
+                    let pa0 = pp.args[0]
+                    if (isArray(pa0)) pa0 = pa0[0]
+
+                    let pa1 = pp.args[1]
+                    if (isArray(pa1)) pa1 = pa1[0]
+
+                    let pa2 = pp.args[2]
+                    if (isArray(pa2)) pa2 = pa2[0]
+
+                    if (stk.contains(p.unique_name ,arg1,arg2,arg3 )) continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                    let stk_next:QueryStack = stk.pushCall(p.unique_name ,arg1 ,arg2,arg3)
+
+
+                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                    let sol_next = new Solution(SolutionState.QTrue, atom_true(), {})
+                    if (this.isVar(arg1) == false) { sol_next = bind(sol_next, pa0, arg1) }
+                    if (this.isVar(arg2) == false) { sol_next = bind(sol_next, pa1, arg2) }
+                    if (this.isVar(arg3) == false) { sol_next = bind(sol_next, pa2, arg3) }
+
+                    //same parameter 
+                    if (this.isVar(pa1) && this.isVar(pa2))
+                    {
+                        if (pa1 instanceof GTems.Variable)
+                        if (pa2 instanceof GTems.Variable)
+                        {
+                          if (pa1.name == pa2.name)
+                          {
+                               
+                          }
+                        }
+                    }
+
+                    // testa a condicao de ativacao do predicado
+                    let cond_satisf = true 
+                    if ( isUndefined( p.condition ) ==false ) {
+                        cond_satisf = false  
+                        //testa a condicao
+                        for (var sol_cond of this.evaluate_query(stk_next,sol_next, p.condition)) {
+                            if (isValidSolution(sol_cond) )
+                            {
+                                cond_satisf = true 
+                                break //apenas a primeira true ja serve
+                            }
+                        }
+                    }
+                    if (cond_satisf ==false ) continue  // nem testa o corpo .. proximo termo
+
+
+
+
+                    if (isValidSolution(sol_next) ==false ) continue
+                    for (var sol_next_inner of this.evaluate_query(stk_next,sol_next, p.value)) {
+                        if (isValidSolution(sol_next_inner) ==false ) continue
+                        sol_next_inner = fuseSolution(sol_next_inner , sol_next);
+                        
+                        let sol_n = new Solution(SolutionState.QTrue, atom_true(), {})
+                        sol_n = fuseSolution(sol, sol_n) //just a copy 
+                        if (this.isVar(arg1))  //arg1 eh uma variavel ? bind para o resultado 
+                        {
+                            let v_ret = getValue(sol_next_inner, pa0)
+                            if (isUndefined(v_ret) == false) sol_n = bind(sol_n, v_ret, arg1)
+                        }
+                        if (isValidSolution(sol_n) ==false ) continue
+                        if (this.isVar(arg2))  //arg1 eh uma variavel ? bind para o resultado 
+                        {
+                            let v_ret = getValue(sol_next_inner, pa1)
+                            if (isUndefined(v_ret) == false) sol_n = bind(sol_n, v_ret, arg2)
+                        }
+                        if (isValidSolution(sol_n) ==false ) continue
+
+                        if (this.isVar(arg3))  //arg1 eh uma variavel ? bind para o resultado 
+                        {
+                            let v_ret = getValue(sol_next_inner, pa2)
+                            if (isUndefined(v_ret) == false) sol_n = bind(sol_n, v_ret, arg3)
+                        }
+                        if (isValidSolution(sol_n) ==false ) continue
+
+
+
+                        query_satisf = true 
+                        let ret = sol_n.add_value(sol_next_inner)
+                        if (ret.state == SolutionState.QCut)
+                        {
+                            ret.state = SolutionState.QTrue;
+                            yield ret
+                            return                         
+                        }
+                        else    { 
+                             yield ret
+                        }
+                    }
+                }
+            }
+            if (f_name.startsWith("ULS")==false )
+                if (hasFound ==false  ){
+                    console.log("Predicate "+f_name + "/3  not found " )
+                }
+        }
+
+
+
+
+
+
+        public *query_ar2(stk:QueryStack,sol: Solution, f_name: string, _arg1: GTems.GBase,_arg2: GTems.GBase) {
             let hasY:boolean =false  
             for (var s of this.query_ar2_inner(stk,sol,f_name,_arg1,_arg2) ) {
                 yield s
@@ -1003,48 +1174,20 @@ export namespace Interp {
             if (isArray(_arg2)) _arg2 = _arg2[0]
 
             let arg1 = _arg1
-            let arg2 = _arg2
-
-            //if (isUndefined(arg1)) arg1 = _arg1
-            //if (isUndefined(arg2)) arg2 = _arg2 
-
-
-            //let value_1 = Array.from(this.evaluate_query(stk,sol, _arg1)).filter((x) => isValidSolution(x)).map((c) => c.value)
-            
-
-            // if (value_1.length > 1) 
-            // {
-            //      for(var [i,q_arg1] of  value_1.entries())
-            //      {
-            //         for(var r_arg1 of  this.query_ar2_inner( stk, sol, f_name, q_arg1, _arg2)) yield r_arg1
-            //      }
-            //      return 
-            // }
-
-            // if (value_1.length > 0) arg1 = value_1[0]
-            // else arg1 = atom_false()
-
-
-            // let value_2 = Array.from(this.evaluate_query(stk,sol, _arg2)).filter((x) => isValidSolution(x)).map((c) => c.value)
-
-            // if (value_2.length > 1) 
-            // {
-            //      for(var [i,q_arg2] of  value_2.entries())
-            //      {
-            //         for(var r_arg2 of  this.query_ar2_inner( stk, sol, f_name, _arg1, q_arg2)) yield r_arg2
-            //      }
-            //      return 
-            // }
-
-
-            // if (value_2.length > 0) arg2 = value_2[0]
-            // else arg2 = atom_false()
+            let arg2 = _arg2 
 
             if (f_name == "unify") {
                 var bvar =   bind(sol, arg1, arg2)
                 yield bvar
                 return  
            }
+
+           if (f_name == "equal") {
+            var bvar_e =   bind(sol, arg1, arg2)
+            if ( isValidSolution(bvar_e)) yield new Solution(bvar_e.state , atom_true(), {})
+            else yield new Solution(bvar_e.state , atom_false(), {})
+            return  
+       }
 
            if (f_name == "append") {
         
@@ -1060,13 +1203,7 @@ export namespace Interp {
                 }
                 return
             }
-
-/*             if (f_name == "or") 
-            {for(var o_or of this.query_or(sol, arg1, arg2))  {
-                  yield o_or
-                }
-                return
-            } */
+ 
             if (f_name == "plus") {
                 for(var ssk of this.buildIn_add(stk,sol, arg1, arg2) )  yield ssk
                 //yield this.buildIn_add(stk,sol, arg1, arg2)
