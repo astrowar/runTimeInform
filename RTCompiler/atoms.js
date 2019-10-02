@@ -123,5 +123,23 @@ var GTems;
         clone() { return new GList(this.items.map((x) => x.clone())); }
     }
     GTems.GList = GList;
+    function atom_false() { return new GTems.LiteralBool(false); }
+    GTems.atom_false = atom_false;
+    function atom_true() { return new GTems.LiteralBool(true); }
+    GTems.atom_true = atom_true;
+    function isEqually(x, y) {
+        let s1 = x.toString();
+        let s2 = y.toString();
+        if (s1 == s2)
+            return true;
+        return false;
+    }
+    GTems.isEqually = isEqually;
+    function isEquallyNumber(x, y) {
+        if (x.value == y.value)
+            return true;
+        return false;
+    }
+    GTems.isEquallyNumber = isEquallyNumber;
 })(GTems = exports.GTems || (exports.GTems = {}));
 //# sourceMappingURL=atoms.js.map

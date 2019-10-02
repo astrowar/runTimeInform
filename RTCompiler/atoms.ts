@@ -8,7 +8,7 @@ export namespace GTems {
     }
 
 
-    function isValidAtomName(pstr: string ): boolean { 
+    function isValidAtomName(pstr: string): boolean { 
         for (var c of pstr) {
             if (";.,()[]|&".indexOf(c) >= 0) {
                 return false
@@ -149,4 +149,19 @@ export namespace GTems {
         
     }
 
+   export  function atom_false() { return new GTems.LiteralBool(false) }
+   export   function atom_true() { return new GTems.LiteralBool(true) }
+
+   export   function isEqually(x: GTems.GBase, y: GTems.GBase) {
+        let s1 = x.toString()
+        let s2 = y.toString()
+        if (s1 == s2) return true
+        return false;
+    }
+
+    export   function isEquallyNumber(x: GTems.LiteralNumber, y: GTems.LiteralNumber) {
+
+        if (x.value == y.value) return true
+        return false;
+    }
 }

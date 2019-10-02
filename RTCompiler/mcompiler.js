@@ -10,15 +10,6 @@ var parseString = mterms_1.UTerm.parseString;
 var splitStringInput = mterms_1.UTerm.splitStringInput;
 class Parser {
 }
-//class Pred {
-//    public name: string
-//    public args: string []
-//    constructor(predname: string, ...arg1 )
-//    {
-//        this.name = predname;
-//        this.args = arg1
-//    }
-//}
 var SyntaxParser;
 (function (SyntaxParser) {
     class Matchfunctior {
@@ -413,6 +404,14 @@ var SyntaxParser;
         for (var x of expr_xy_operator("<", args_dict))
             yield x;
     }
+    function* expr_GTE(args_dict) {
+        for (var x of expr_xy_operator(">=", args_dict))
+            yield x;
+    }
+    function* expr_LTE(args_dict) {
+        for (var x of expr_xy_operator("<=", args_dict))
+            yield x;
+    }
     function* expr_MUL(args_dict) {
         for (var x of expr_xy_operator("*", args_dict))
             yield x;
@@ -473,7 +472,22 @@ var SyntaxParser;
                 return;
             }
         }
-        yield x[0].getGeneralTerm();
+        if (x.length == 1)
+            yield x[0].getGeneralTerm();
+        if (x.length == 2) {
+            if (x[0].txt == '+') {
+                let n = Number(x[1].txt);
+                if (isNaN(n) == false) {
+                    yield new atoms_1.GTems.LiteralNumber(n);
+                }
+            }
+            if (x[0].txt == '-') {
+                let n = Number(x[1].txt);
+                if (isNaN(n) == false) {
+                    yield new atoms_1.GTems.LiteralNumber(-n);
+                }
+            }
+        }
     }
     function* codebodyMatch(args) {
         let basePathens = [
@@ -491,6 +505,8 @@ var SyntaxParser;
             new Matchfunctior("$X - $Y", expr_minus),
             new Matchfunctior("$X > $Y", expr_GT),
             new Matchfunctior("$X < $Y", expr_LT),
+            new Matchfunctior("$X > = $Y", expr_GTE),
+            new Matchfunctior("$X < = $Y", expr_LTE),
             new Matchfunctior("$X * $Y", expr_MUL),
             new Matchfunctior("$X / $Y", expr_DIV),
             new Matchfunctior("$funct ( $args )", expr_funct),
@@ -739,15 +755,22 @@ let prices = `
 
     `;
 let simple = `
+unless r($x,$y,$c) as r($x,$z,$c1),r($z,$y,$c2), $c =   -1
+do r( a,b,1).
+do r( b,c,1).
+do r( c,d,2).
+do r( d,f,1).
+do r( a,e,5).
+do r( e,f,5).
 
-do f([],$x,$x) .
+ 
  
  
 `;
 let ctx = new interp_1.Interp.Context();
 SyntaxParser.MatchSyntaxDecl(simple, (x, y, z, prio) => { return ctx.addPredicateFunc(x, y, z, prio); });
 console.log("______________________________");
-SyntaxParser.MatchSyntaxGoal(" f( [],1,$u)   ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
+SyntaxParser.MatchSyntaxGoal(" r( a,f,$c)   ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
 console.log("______________________________");
 console.log('end log');
 //# sourceMappingURL=mcompiler.js.map

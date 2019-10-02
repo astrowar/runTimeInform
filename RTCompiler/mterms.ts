@@ -1,5 +1,5 @@
 ﻿
- /// <reference path="./atoms.ts" />
+/// <reference path="./atoms.ts" />
 
 import { GTems } from "./atoms";
 
@@ -65,14 +65,13 @@ export namespace UTerm {
     }
 
     function isMatch(x: ITerm[], m: MatchTerm): MatchResult {
-         
+
         //return new MatchResult(true)
 
 
 
         if (m instanceof MatchStringLiteral) {
-            if (x.length == 1)
-            {
+            if (x.length == 1) {
                 return new MatchResult(x[0].gettext() === m.str)
             }
         }
@@ -108,7 +107,7 @@ export namespace UTerm {
             if (cq < 0) return false
         }
 
-        
+
 
         return eq == 0
     }
@@ -174,9 +173,8 @@ export namespace UTerm {
 
     class TermCode extends ITerm {
         constructor(_txt: string) { super(_txt) }
-        isLiteral(): boolean {return false}
-        getGeneralTerm(): GTems.GBase
-        { 
+        isLiteral(): boolean { return false }
+        getGeneralTerm(): GTems.GBase {
             if (this.txt == "true") {
                 return new GTems.LiteralBool(true)
             }
@@ -186,7 +184,7 @@ export namespace UTerm {
             }
 
             if (this.txt[0] == "$") {
-                return new GTems.Variable( (this.txt.slice(1)))
+                return new GTems.Variable((this.txt.slice(1)))
             }
 
             if (this.txt == "!") {
@@ -194,8 +192,8 @@ export namespace UTerm {
             }
 
             {
-            let n = Number(this.txt)
-            if (isNaN(n) ==false )     return new GTems.LiteralNumber(n)
+                let n = Number(this.txt)
+                if (isNaN(n) == false) return new GTems.LiteralNumber(n)
             }
 
             return new GTems.Atom(this.txt)
@@ -255,7 +253,7 @@ export namespace UTerm {
     }
 
 
-  export  function* parseString(xs: ITerm[], mstr: string) {
+    export function* parseString(xs: ITerm[], mstr: string) {
         //let xs = x.split(" ");
         //xs = xs.filter(Boolean);
         let m = mstr.split(" ")
