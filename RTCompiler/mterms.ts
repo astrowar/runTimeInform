@@ -28,6 +28,15 @@ export namespace UTerm {
     }
 
 
+    class MatchOptional extends MatchTerm {
+        public inner: MatchTerm;
+        constructor(_inner: MatchTerm) {
+            super();
+            this.inner = _inner;
+        }
+    };
+
+
 
     class VarAssigned {
         public var_name: string;
@@ -82,6 +91,13 @@ export namespace UTerm {
                 return new MatchResult(true, [new VarAssigned(m.vname, x)])
             }
         }
+
+        if (m instanceof MatchOptional) {
+            let mv: MatchOptional = m as MatchOptional
+            return isMatch(x, mv.inner)
+        }
+
+
         return new MatchResult(false)
 
     }
@@ -116,12 +132,10 @@ export namespace UTerm {
 
         let n: number = ms.length
         if (n == 1) {
-
             let r = isMatch(xs, ms[0]);
             if (r.result) {
                 yield acc.add(r)
-            }
-
+            } 
             return
         }
 
@@ -130,7 +144,6 @@ export namespace UTerm {
         if (m < n) return
         for (let i = 1; i < m; ++i) {
             let h: ITerm[] = xs.slice(0, i)
-
             let rx = isMatch(h, ms[0])
             if (rx.result) {
                 // let accNext = acc.concat([h])
@@ -141,6 +154,16 @@ export namespace UTerm {
                     yield tt;
                 }
             }
+            //eh um termo optional ?
+            if (ms[0] instanceof MatchOptional)
+            {
+                //testa sem o termo opcional
+                var mstail = ms.slice(1)
+                for (let tt of combinations(acc, xs, mstail)) {
+                    yield tt;
+                }
+            }
+
         }
         return
     }
@@ -155,6 +178,10 @@ export namespace UTerm {
     function termParser(x: string): MatchTerm {
         if (x[0] === "$") {
             return new MatchVar(x)
+        }
+        if (x[0] === "?") {
+            let inner = termParser(x.substr(1,x.length -1 ));            
+            return new MatchOptional(inner )
         }
         return new MatchStringLiteral(x)
         //return new MatchTerm()
@@ -225,7 +252,7 @@ export namespace UTerm {
                     acc = ""
                     continue
                 }
-                if ((",;(){}|\n[].+-*/!#=><").indexOf(c) >= 0) {
+                if ((",;(){}|\r\n[].+-*/!#=><").indexOf(c) >= 0) {
                     if (acc.length > 0) terms.push(new TermCode(acc))
                     terms.push(new TermCode(c))
                     acc = ""

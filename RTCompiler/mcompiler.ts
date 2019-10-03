@@ -27,6 +27,10 @@ class Parser {
 
 namespace SyntaxParser {
  
+  class PSyntaxError{
+    constructor(public message: string ) { }
+  }
+
     class Matchfunctior {
         constructor(public mstr: string, public func: any) { }
     }
@@ -179,6 +183,8 @@ namespace SyntaxParser {
 
     function resolve_args(args: ITerm[]) {
 
+        
+        if (args.length ==0 ) return []
         if (isBalanced(args) == false) return undefined
 
         let arg_b = []
@@ -231,11 +237,20 @@ namespace SyntaxParser {
 
     function* funct_0(args_dict) {
         let pname: ITerm[] = args_dict["$funct"]
-        return pname[0].getGeneralTerm()
-        if (isValidAtomName(pname)) {
-            yield new GTems.Atom(pname[0].gettext())
-        }
+         
+        yield new GTems.Functor(pname[0].txt)
+        //let r = pname[0].getGeneralTerm()
+        //yield r
+      
     }
+
+    function* funct_z(args_dict) {
+        let pname: ITerm[] = args_dict["$funct"]     
+        if ( pname.length == 1 )    
+                yield new GTems.Functor(pname[0].txt)
+    }
+
+
     function* funct_1(args_dict) {
         yield funct_resolve(args_dict["$funct"], args_dict["$A"])
     }
@@ -302,18 +317,10 @@ namespace SyntaxParser {
             new Matchfunctior("$funct1 ( $args1 ) | $rem", funct_rem_or),
             //new Matchfunctior("$funct ( $A , $B )", funct_2),
             new Matchfunctior("$funct ( $A )", funct_1),
-            new Matchfunctior("$funct", funct_0)
+            new Matchfunctior("$funct (  )", funct_0),
+            new Matchfunctior("$funct", funct_z)
         ]
-        for (var vj of genPattens_i(args, basePathens)) {
-
-            // for (var vv of vj[1](vj[0])) {
-            //     if (isUndefined(vv) == false) 
-            //     {
-            //         yield vv
-            //         break
-            //     }
-            // }
-
+        for (var vj of genPattens_i(args, basePathens)) { 
 
             let pool = []
             for (var vv of vj[1](vj[0])) {
@@ -325,6 +332,7 @@ namespace SyntaxParser {
                     break
                 }
             }
+            
 
             //alimanta saida dos termos
             for (var [i, vv] of pool.entries()) yield vv
@@ -439,7 +447,9 @@ namespace SyntaxParser {
     function* expr_DIV(args_dict) {
         for (var x of expr_xy_operator("/", args_dict)) yield x
     }
-
+    function* expr_MOD(args_dict) {
+        for (var x of expr_xy_operator("%", args_dict)) yield x
+    }
 
     function* expr_UNIFY(args_dict) {
         for (var x of expr_xy_operator("unify", args_dict)) yield x
@@ -451,11 +461,23 @@ namespace SyntaxParser {
     function* expr_funct(args_dict) {
         let fname: ITerm[] = args_dict["$funct"]
         if (fname.length != 1) return undefined
-
         let fargs: ITerm[] = args_dict["$args"]
-        let p1 = funct_resolve(fname, fargs)
-        yield p1
+        if ( isUndefined(fargs) ==false ) 
+        {  let p1 = funct_resolve(fname, fargs)
+           yield p1
+        }
     }
+
+    function* expr_funct_0(args_dict) {
+        let fname: ITerm[] = args_dict["$funct"]
+        if (fname.length != 1) return undefined
+     
+       
+         let p1 = funct_resolve(fname, [])
+           yield p1
+        
+    }
+
 
 
     function* expr_atorm_reserv(value: string) {
@@ -547,8 +569,11 @@ namespace SyntaxParser {
 
             new Matchfunctior("$X * $Y", expr_MUL),
             new Matchfunctior("$X / $Y", expr_DIV),
+            new Matchfunctior("$X % $Y", expr_MOD),
+            
+            
 
-
+            new Matchfunctior("$funct (   )", expr_funct_0),
             new Matchfunctior("$funct ( $args )", expr_funct),
             new Matchfunctior("[ $X ]", expr_lst),
             new Matchfunctior("[ ]", expr_lst),
@@ -589,7 +614,7 @@ namespace SyntaxParser {
         for (var px of predDecl(x)) {
             for (var cy of codeBody(y)) {
                 for (var cz of codeBody(z)) {
-                    reFunc(px, cy, cz, 0)
+                    reFunc(px, cy, cz, [])
                     return true
                 }
             }
@@ -606,7 +631,7 @@ namespace SyntaxParser {
             for (var cy of codeBody(y)) {
 
                 // console.dir([px, cy, []], { depth: null })
-                reFunc(px, cy, undefined, 0)
+                reFunc(px, cy, undefined, [])
                 return true
             }
         }
@@ -616,48 +641,60 @@ namespace SyntaxParser {
         let x = args_dict["$X"]
         for (var px of predDecl(x)) {
             //console.dir([px, [], []], { depth: null })
-            reFunc(px, new GTems.LiteralBool(true), undefined, 0)
+            reFunc(px, new GTems.LiteralBool(true), undefined, [])
             return true
         }
         return false
     }
 
     function unless_xyz(args_dict, reFunc): boolean {
-        return syntax_xyz(args_dict, (p, body, cond, pr) => { p.name = "ULS" + p.name; reFunc(p, body, cond, pr - 1000) })
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
     }
 
     function unless_xy(args_dict, reFunc): boolean {
-        return syntax_xy(args_dict, (p, body, cond, pr) => { p.name = "ULS" + p.name; reFunc(p, body, cond, pr - 1000) })
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
     }
 
     function unless_x(args_dict, reFunc): boolean {
-        return syntax_x(args_dict, (p, body, cond, pr) => { p.name = "ULS" + p.name; reFunc(p, body, cond, pr - 1000) })
+        return syntax_x(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
+    }
+
+    function syntax_xyz_direct(args_dict, reFunc): boolean {
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["direct"])) })
+    }
+
+    function syntax_xy_direct(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["direct"])) })
+    }
+
+    function syntax_x_direct(args_dict, reFunc): boolean {
+        return syntax_x(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["direct"])) })
     }
 
 
 
     function syntax_xyz_low(args_dict, reFunc): boolean {
-        return syntax_xyz(args_dict, (p, body, cond, pr) => { reFunc(p, body, cond, pr - 1000) })
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["lowP"])  ) })
     }
 
     function syntax_xy_low(args_dict, reFunc): boolean {
-        return syntax_xy(args_dict, (p, body, cond, pr) => { reFunc(p, body, cond, pr - 1000) })
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["lowP"])) })
     }
 
     function syntax_x_low(args_dict, reFunc): boolean {
-        return syntax_x(args_dict, (p, body, cond, pr) => { reFunc(p, body, cond, pr - 1000) })
+        return syntax_x(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["lowP"])   ) })
     }
 
     function syntax_xyz_high(args_dict, reFunc): boolean {
-        return syntax_xyz(args_dict, (p, body, cond, pr) => { reFunc(p, body, cond, pr + 1000) })
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["highP"])  ) })
     }
 
     function syntax_xy_high(args_dict, reFunc): boolean {
-        return syntax_xy(args_dict, (p, body, cond, pr) => { reFunc(p, body, cond, pr + 1000) })
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["highP"])  ) })
     }
 
     function syntax_x_high(args_dict, reFunc): boolean {
-        return syntax_x(args_dict, (p, body, cond, pr) => { reFunc(p, body, cond, pr + 1000) })
+        return syntax_x(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["highP"])  ) })
     }
 
 
@@ -674,14 +711,21 @@ namespace SyntaxParser {
     }
 
 
+    class LineCode {
+        constructor(public line: string , public addr: number, public linenumber: number   ) { }
+    }
 
 
     function linesSplit(xcode: string) {
         let n = xcode.length
         let xc = ""
-        let xcs: string[] = []
+        let xcs: LineCode[] = []
         let p = 0;
+        let lc =0 
         for (var i = 0; i < n; ++i) {
+            if (xcode[i] == "\n") lc= lc+1
+            if (xcode[i] == "\r") continue
+
             if (xcode[i] == "{") {
                 p = p + 1
             }
@@ -690,9 +734,9 @@ namespace SyntaxParser {
             }
             if (p < 0) return undefined //error
 
-            if (xcode[i] == "\n") {
+            if (xcode[i] == "\n") {                
                 if (p == 0) {
-                    if (xc.length > 0) xcs.push(xc)
+                    if (xc.length > 0) xcs.push(new LineCode(xc, i, lc))
                     xc = ""
                 }
                 else {
@@ -703,14 +747,27 @@ namespace SyntaxParser {
                 xc = xc + xcode[i]
             }
         }
-        if (xc.length > 0) xcs.push(xc)
+        if (xc.length > 0) xcs.push(new LineCode(xc, i, lc))
         return xcs
     }
 
 
+    function isEmptyLine(x:string ):boolean
+    {
+        var regex = /^\s+$/;
+        if (x.match(regex)) return true 
+        return false 
+    }
+
     export function MatchSyntaxDecl(xcode: string, resolutionFunc) {
 
         let basePathens = [
+
+            new Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
+            new Matchfunctior("do $X = > $Y ", syntax_xy_direct),
+          
+
+
             new Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
             new Matchfunctior("do -  $X as $Y ", syntax_xy_low),
             new Matchfunctior("do -  $X  ", syntax_x_low),
@@ -743,12 +800,19 @@ namespace SyntaxParser {
         ]
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {
-            let sline = splitStringInput(iline)
 
+            if (isEmptyLine(iline.line)) continue
+            let sline = splitStringInput(iline.line)
+
+            let has_code: boolean = false
             for (var vj of genPattens_i(sline, basePathens)) {
-
-                let has_code: boolean = vj[1](vj[0], resolutionFunc)
+                has_code = vj[1](vj[0], resolutionFunc)
                 if (has_code) break
+            }
+            if (has_code ==false )
+            {
+               console.log("Syntax Error at Line "+ iline.linenumber )    
+               return 
             }
         }
     }
@@ -756,10 +820,17 @@ namespace SyntaxParser {
     export function MatchSyntaxGoal(xcode: string, resolutionFunc) {
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {
-            let sline = splitStringInput(iline)
-            for (var px of codebodyMatch(sline)) {
+            let sline = splitStringInput(iline.line)
+            let hasE = false 
+            for (var px of codebodyMatch(sline)) 
+            {
                 let s = resolutionFunc(px)
+                hasE = true 
                 break
+            }
+            if (hasE ==false ){
+                console.log("Syntax Error at Line "+ iline.linenumber )    
+                return 
             }
         }
     }
@@ -834,11 +905,6 @@ let prices = `
     do price($obj) as { price($obj) - price_to_clean }  if dirt($obj)
     do+ price($obj) as {  max( 0 , price($obj) )  } 
     
-
-
-    `
-
-let simple = `
 unless r($x,$y,$c) as r($x,$z,$c1),r($z,$y,$c2), $c = - 1
 do r( a,b,1).
 do r( b,c,1).
@@ -847,22 +913,38 @@ do r( d,f,1).
 do r( a,e,5).
 do r( e,f,5).
 
+    `
+
+let simple = `
  
  
+
  
+
 `
 
 
-let ctx = new Interp.Context()
+function processScript(src:string):Interp.Context {
 
-SyntaxParser.MatchSyntaxDecl(simple, (x, y, z, prio) => { return ctx.addPredicateFunc(x, y, z, prio) })
+   let ctx = new Interp.Context()
+   SyntaxParser.MatchSyntaxDecl(src, (x, y, z, prio) => { return ctx.addPredicateFunc(x, y, z, prio) })
+   return ctx
+}
 
-console.log("______________________________")
-
-SyntaxParser.MatchSyntaxGoal(" r( a,f,$c)   ", (x) => { console.dir(ctx.all_query(x).map((s ) => { return s.toString() }), { depth: null }) })
-
-console.log("______________________________")
-
+var fs = require('fs');
 
 
-console.log('end log');
+let ctx :Interp.Context = undefined
+let script_filename = 'script.txt'
+if (fs.existsSync(script_filename) ) {
+    var s = fs.readFileSync(script_filename,'utf8');
+   ctx = processScript(s)
+}
+else{
+    throw "Script " + script_filename+" File Not found"
+}
+
+SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { console.dir(ctx.all_query(x).map((s ) => { return s.toString() }), { depth: null }) })
+
+
+console.log('end');

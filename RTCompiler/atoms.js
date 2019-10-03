@@ -8,7 +8,7 @@ var GTems;
     GTems.GBase = GBase;
     function isValidAtomName(pstr) {
         for (var c of pstr) {
-            if (";.,()[]|&".indexOf(c) >= 0) {
+            if (";.,()[]|&\n\r".indexOf(c) >= 0) {
                 return false;
             }
         }

@@ -10,7 +10,7 @@ export namespace GTems {
 
     function isValidAtomName(pstr: string): boolean { 
         for (var c of pstr) {
-            if (";.,()[]|&".indexOf(c) >= 0) {
+            if (";.,()[]|&\n\r".indexOf(c) >= 0) {
                 return false
             }
         }
