@@ -1,0 +1,77 @@
+Opening is an action applying to one thing.
+ 
+
+let action(opening(thing) ).
+
+
+
+Check an actor opening (this is the can’t open unless openable rule):
+  if the noun provides the property openable and the noun is openable,continue the action;
+     stop the action with library message opening action number 1 for the noun.
+
+
+check  opening(actor,noun ) as not(openable(noun))  , stop_with_message("object is not openable")
+
+
+
+Check an actor opening (this is the can’t open what’s locked rule):
+  if the noun provides the property lockable and the noun is locked,
+     stop the action with library message opening action number 2 for the noun.
+
+check  opening(actor,noun ) as lockable(noun) ,locked(noun),  stop_with_message("object is not openable")
+
+
+
+Check an actor opening (this is the can’t open what’s already open rule):
+  if the noun is open,
+     stop the action with library message opening action number 3 for the noun.
+
+check  opening(actor,noun ) as open(noun) ,stop_with_message("object is not openable")
+
+
+Report an actor opening (this is the reveal any newly visible interior rule):
+if the actor is the player and
+   the noun is an opaque container and
+   the first thing held by the noun is not nothing and
+   the noun does not enclose the actor,
+       stop the action with library message opening action number 4 for the noun.
+
+report  opening($actor,$noun ) as actor==player, container($noun),opaque($noun),
+    container_list($noun,$held)
+     head( $h, $held), not($h,nothing), 
+     not(member($actor,$held)),
+        stop_with_message("object is not openable")
+
+
+
+
+
+
+The specification of container is "Represents something into which portable
+things can be put, such as a teachest or a handbag. Something with a really
+large immobile interior, such as the Albert Hall, had better be a room
+instead."
+
+
+A container can be enterable.
+let is(container) as enterable 
+
+A container can be opaque or transparent. A container is usually opaque.
+let is(container) as opaque | transparent 
+adj _(container,opaque | transparent ) as opaque
+
+
+
+A container has a number called carrying capacity.
+
+let carrying_capacity(container) as number
+let carrying_capacity(container) as 100
+
+ou 
+
+adj carrying_capacity(container,number ) as 100
+
+
+The carrying capacity of a container is usually 100.
+Include (- has container, -) when defining a container.
+
