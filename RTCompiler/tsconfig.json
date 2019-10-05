@@ -4,9 +4,12 @@
     "target": "es6",
     "lib": ["es6"],
     "sourceMap": true,
+    
     "downlevelIteration": true
   },
   "exclude": [
     "node_modules"
   ]
 }
+
+//browserify mcompiler.js -o bundle.js

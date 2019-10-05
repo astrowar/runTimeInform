@@ -1,5 +1,5 @@
 ﻿
- /// <reference path="./atoms.ts" />
+/// <reference path="./atoms.ts" />
 
 import { GTems } from "./atoms";
 
@@ -26,6 +26,15 @@ export namespace UTerm {
             this.str = _str;
         }
     }
+
+
+    class MatchOptional extends MatchTerm {
+        public inner: MatchTerm;
+        constructor(_inner: MatchTerm) {
+            super();
+            this.inner = _inner;
+        }
+    };
 
 
 
@@ -65,14 +74,13 @@ export namespace UTerm {
     }
 
     function isMatch(x: ITerm[], m: MatchTerm): MatchResult {
-         
+
         //return new MatchResult(true)
 
 
 
         if (m instanceof MatchStringLiteral) {
-            if (x.length == 1)
-            {
+            if (x.length == 1) {
                 return new MatchResult(x[0].gettext() === m.str)
             }
         }
@@ -83,6 +91,13 @@ export namespace UTerm {
                 return new MatchResult(true, [new VarAssigned(m.vname, x)])
             }
         }
+
+        if (m instanceof MatchOptional) {
+            let mv: MatchOptional = m as MatchOptional
+            return isMatch(x, mv.inner)
+        }
+
+
         return new MatchResult(false)
 
     }
@@ -108,7 +123,7 @@ export namespace UTerm {
             if (cq < 0) return false
         }
 
-        
+
 
         return eq == 0
     }
@@ -117,12 +132,10 @@ export namespace UTerm {
 
         let n: number = ms.length
         if (n == 1) {
-
             let r = isMatch(xs, ms[0]);
             if (r.result) {
                 yield acc.add(r)
-            }
-
+            } 
             return
         }
 
@@ -131,7 +144,6 @@ export namespace UTerm {
         if (m < n) return
         for (let i = 1; i < m; ++i) {
             let h: ITerm[] = xs.slice(0, i)
-
             let rx = isMatch(h, ms[0])
             if (rx.result) {
                 // let accNext = acc.concat([h])
@@ -142,6 +154,16 @@ export namespace UTerm {
                     yield tt;
                 }
             }
+            //eh um termo optional ?
+            if (ms[0] instanceof MatchOptional)
+            {
+                //testa sem o termo opcional
+                var mstail = ms.slice(1)
+                for (let tt of combinations(acc, xs, mstail)) {
+                    yield tt;
+                }
+            }
+
         }
         return
     }
@@ -156,6 +178,10 @@ export namespace UTerm {
     function termParser(x: string): MatchTerm {
         if (x[0] === "$") {
             return new MatchVar(x)
+        }
+        if (x[0] === "?") {
+            let inner = termParser(x.substr(1,x.length -1 ));            
+            return new MatchOptional(inner )
         }
         return new MatchStringLiteral(x)
         //return new MatchTerm()
@@ -174,9 +200,8 @@ export namespace UTerm {
 
     class TermCode extends ITerm {
         constructor(_txt: string) { super(_txt) }
-        isLiteral(): boolean {return false}
-        getGeneralTerm(): GTems.GBase
-        { 
+        isLiteral(): boolean { return false }
+        getGeneralTerm(): GTems.GBase {
             if (this.txt == "true") {
                 return new GTems.LiteralBool(true)
             }
@@ -186,7 +211,7 @@ export namespace UTerm {
             }
 
             if (this.txt[0] == "$") {
-                return new GTems.Variable( (this.txt.slice(1)))
+                return new GTems.Variable((this.txt.slice(1)))
             }
 
             if (this.txt == "!") {
@@ -194,8 +219,8 @@ export namespace UTerm {
             }
 
             {
-            let n = Number(this.txt)
-            if (isNaN(n) ==false )     return new GTems.LiteralNumber(n)
+                let n = Number(this.txt)
+                if (isNaN(n) == false) return new GTems.LiteralNumber(n)
             }
 
             return new GTems.Atom(this.txt)
@@ -227,7 +252,7 @@ export namespace UTerm {
                     acc = ""
                     continue
                 }
-                if ((",;(){}|\n[].+-*/!#=><").indexOf(c) >= 0) {
+                if ((",;(){}|\r\n[].+-*/!#=><").indexOf(c) >= 0) {
                     if (acc.length > 0) terms.push(new TermCode(acc))
                     terms.push(new TermCode(c))
                     acc = ""
@@ -255,7 +280,7 @@ export namespace UTerm {
     }
 
 
-  export  function* parseString(xs: ITerm[], mstr: string) {
+    export function* parseString(xs: ITerm[], mstr: string) {
         //let xs = x.split(" ");
         //xs = xs.filter(Boolean);
         let m = mstr.split(" ")

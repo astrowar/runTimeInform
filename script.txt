@@ -1,0 +1,6 @@
+ 
+do main() => repeat(true),write()
+
+
+ 
+

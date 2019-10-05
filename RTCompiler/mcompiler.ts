@@ -2,14 +2,14 @@
 import { isUndefined } from "util";
 
 
- /// <reference path="./mterms.ts" />
+/// <reference path="./mterms.ts" />
 //import * as mterms from "./mterms";
 
 import { UTerm } from "./mterms";
 import { GTems } from "./atoms";
 import { Interp } from "./interp";
 
-  type SGroup = string[];
+type SGroup = string[];
 
 
 type ITerm = UTerm.ITerm
@@ -20,38 +20,16 @@ var splitStringInput = UTerm.splitStringInput
 
 class Parser {
 
-
-
-
+ 
 }
-
-//class Pred {
-//    public name: string
-//    public args: string []
-//    constructor(predname: string, ...arg1 )
-//    {
-//        this.name = predname;
-//        this.args = arg1
-//    }
-//}
-
- 
  
 
- 
-
- 
-
- 
-
- 
 
 namespace SyntaxParser {
-
-
-
-
-  
+ 
+  class PSyntaxError{
+    constructor(public message: string ) { }
+  }
 
     class Matchfunctior {
         constructor(public mstr: string, public func: any) { }
@@ -62,8 +40,7 @@ namespace SyntaxParser {
             for (var vqxxxx of parseString(iline, matc)) {
                 let vxxx: MatchResult = <MatchResult>vqxxxx
                 let q = {}
-                for (var sxxx of vxxx.entries())
-                {
+                for (var sxxx of vxxx.entries()) {
                     q[<string>sxxx[0]] = sxxx[1]
                     //yield sxxx
                 }
@@ -74,11 +51,10 @@ namespace SyntaxParser {
     }
 
     class MFragmentKind {
-        constructor(public txt: string, public optional: boolean)
-        {
+        constructor(public txt: string, public optional: boolean) {
             if (this.optional) {
                 if (this.txt[0] == '(') {
-                    this.txt = this.txt.slice(1, this.txt.length -1)
+                    this.txt = this.txt.slice(1, this.txt.length - 1)
                 }
             }
         }
@@ -88,14 +64,13 @@ namespace SyntaxParser {
         let n = m.length
         let p = 0;
         for (let i = j; i < n; ++i) {
-            if ((m[i] == ' ') && ( p == 0)) return i
+            if ((m[i] == ' ') && (p == 0)) return i
             if (m[i] == '(') p = p + 1
-            if (m[i] == ')')
-            {
-                if (p ==1) return i+1
+            if (m[i] == ')') {
+                if (p == 1) return i + 1
                 p = p - 1
             }
-            
+
         }
         return n
     }
@@ -109,7 +84,7 @@ namespace SyntaxParser {
         let pivot = 0
         while (i < n) {
             if (m[i] == '?') {
-                if (i - 1 > pivot)  terms.push(new MFragmentKind(m.slice(pivot, i - 1), false))
+                if (i - 1 > pivot) terms.push(new MFragmentKind(m.slice(pivot, i - 1), false))
                 let j = find_end_term(m, i + 1)
                 terms.push(new MFragmentKind(m.slice(i + 1, j), true))
                 pivot = j
@@ -122,25 +97,24 @@ namespace SyntaxParser {
 
 
     function* expand_rem(acc: string[], rem: MFragmentKind[]) {
-        if (rem.length == 0)
-        {
+        if (rem.length == 0) {
             yield acc.join(" ")
         }
         else {
             let acc_nex: string[] = acc.concat([rem[0].txt])
-            for (var x of expand_rem(acc_nex, rem.slice(1)))     { yield x }            
+            for (var x of expand_rem(acc_nex, rem.slice(1))) { yield x }
             if (rem[0].optional) {
-                for (var x of expand_rem(acc, rem.slice(1)))    { yield x }
+                for (var x of expand_rem(acc, rem.slice(1))) { yield x }
             }
         }
     }
 
-    function* expand_i(m : string) {
+    function* expand_i(m: string) {
         //separa em fix segments e optional  
         let n = m.length
         let terms: MFragmentKind[] = classifySegments(m);
-        for (var mx of expand_rem([], terms))            {
-            yield mx 
+        for (var mx of expand_rem([], terms)) {
+            yield mx
         }
         //yield m
     }
@@ -152,14 +126,13 @@ namespace SyntaxParser {
         for (var [i, m] of matc.entries()) {
             for (var mii of expand_i(m.mstr)) {
                 ret.push(new Matchfunctior(mii, m.func))
-                }
+            }
         }
 
         return ret;
     }
 
-    function* genPattens_i(iline: ITerm[], matc: Matchfunctior[]) 
-    {
+    function* genPattens_i(iline: ITerm[], matc: Matchfunctior[]) {
         let matc_ex: Matchfunctior[] = expand(matc)
 
         for (var [i, m] of matc_ex.entries()) {
@@ -173,8 +146,7 @@ namespace SyntaxParser {
     }
 
 
-    function resolve_as(args: ITerm[])
-    {
+    function resolve_as(args: ITerm[]) {
         let codeexpr = Array.from(codebodyMatch(args))
         if (codeexpr.length > 0) return codeexpr[0]
 
@@ -183,47 +155,48 @@ namespace SyntaxParser {
         return q;
     }
 
-    function isBalanced(x: ITerm[])
-    { 
-            let n = x.length
-            var x_par = 0
-            var x_bra = 0
-            var x_str = false 
-     
-            for(var i =0 ;i< n;++i) {
-                if (x[i].txt ==")") x_par = x_par -1
-                if (x[i].txt =="(") x_par = x_par +1
-     
-                if (x[i].txt =="]") x_bra= x_bra -1 
-                if (x[i].txt =="[") x_bra= x_bra +1 
-     
-                if (x[i].txt ==='"') x_str = !x_str 
-                if (x_par < 0 ) return false
-                if (x_bra < 0 ) return false
-                
-            }
+    function isBalanced(x: ITerm[]) {
+        let n = x.length
+        var x_par = 0
+        var x_bra = 0
+        var x_str = false
 
-            if (x_par !== 0 ) return false
-            if (x_bra !== 0 ) return false
-            if (x_str == true ) return false
-            return true
-            
+        for (var i = 0; i < n; ++i) {
+            if (x[i].txt == ")") x_par = x_par - 1
+            if (x[i].txt == "(") x_par = x_par + 1
+
+            if (x[i].txt == "]") x_bra = x_bra - 1
+            if (x[i].txt == "[") x_bra = x_bra + 1
+
+            if (x[i].txt === '"') x_str = !x_str
+            if (x_par < 0) return false
+            if (x_bra < 0) return false
+
+        }
+
+        if (x_par !== 0) return false
+        if (x_bra !== 0) return false
+        if (x_str == true) return false
+        return true
+
     }
 
     function resolve_args(args: ITerm[]) {
 
-        if (isBalanced(args)==false ) return undefined
         
+        if (args.length ==0 ) return []
+        if (isBalanced(args) == false) return undefined
+
         let arg_b = []
         let acc: ITerm[] = []
         let n = args.length
 
-        let args_c =  splitTerms(args,",")
-        for( var [i,ac] of args_c.entries()){
-            let rac = resolve_as(ac)            
-            arg_b.push( rac)
+        let args_c = splitTerms(args, ",")
+        for (var [i, ac] of args_c.entries()) {
+            let rac = resolve_as(ac)
+            arg_b.push(rac)
         }
-      
+
 
         // for (var i = 0; i < n; i++)
         // {
@@ -236,7 +209,7 @@ namespace SyntaxParser {
         //     }
         // }
         // if (acc.length > 0) arg_b.push(resolve_as(acc))
-        return arg_b 
+        return arg_b
     }
 
     function isValidAtomName(pname: ITerm[]): boolean {
@@ -246,7 +219,7 @@ namespace SyntaxParser {
             if (";.,()[]|&+-*/".indexOf(c) >= 0) {
                 return false
             }
-        }   
+        }
         return true
     }
 
@@ -262,27 +235,33 @@ namespace SyntaxParser {
         return new GTems.Functor(patm.toString(), ...arg_a)
     }
 
-    function* funct_0(args_dict)
-    {
+    function* funct_0(args_dict) {
         let pname: ITerm[] = args_dict["$funct"]
-        return pname[0].getGeneralTerm()
-        if (isValidAtomName(pname)) {
-            yield new GTems.Atom(pname[0].gettext())
-        }
+         
+        yield new GTems.Functor(pname[0].txt)
+        //let r = pname[0].getGeneralTerm()
+        //yield r
+      
     }
-    function* funct_1(args_dict)
-    { 
+
+    function* funct_z(args_dict) {
+        let pname: ITerm[] = args_dict["$funct"]     
+        if ( pname.length == 1 )    
+                yield new GTems.Functor(pname[0].txt)
+    }
+
+
+    function* funct_1(args_dict) {
         yield funct_resolve(args_dict["$funct"], args_dict["$A"])
     }
 
-    function* funct_2(args_dict)
-    {
+    function* funct_2(args_dict) {
         let pname: ITerm[] = args_dict["$funct"]
         if (pname.length != 1) return undefined
         //let arg_a = args_dict["$A"].map(function (t: ITerm) {      return t.gettext();       });
         //let arg_b = args_dict["$B"].map(function (t: ITerm) { return t.gettext(); });
 
-        let p = funct_resolve(pname , [args_dict["$A"], args_dict["$B"]])
+        let p = funct_resolve(pname, [args_dict["$A"], args_dict["$B"]])
         if (p != null) yield p
 
         //yield new GTems.Functor(pname[0].gettext(), arg_a, arg_b)        
@@ -306,16 +285,15 @@ namespace SyntaxParser {
 
     function* funct_rem(args_dict) {
         let pname1: ITerm[] = args_dict["$funct1"]
-        if (pname1.length != 1) return undefined 
-        let arg_1 = args_dict["$args1"] 
+        if (pname1.length != 1) return undefined
+        let arg_1 = args_dict["$args1"]
         let p1 = funct_resolve(pname1, arg_1)
         if (isUndefined(p1)) return undefined
-        for (var pnext of predDecl(args_dict["$rem"]))
-        {            
+        for (var pnext of predDecl(args_dict["$rem"])) {
             if (isUndefined(pnext)) continue
             yield new GTems.Functor("and", p1, pnext)
         }
-        return 
+        return
     }
 
     function* funct_rem_or(args_dict) {
@@ -338,19 +316,11 @@ namespace SyntaxParser {
             new Matchfunctior("$funct1 ( $args1 ) , $rem", funct_rem),
             new Matchfunctior("$funct1 ( $args1 ) | $rem", funct_rem_or),
             //new Matchfunctior("$funct ( $A , $B )", funct_2),
-            new Matchfunctior("$funct ( $A )", funct_1),            
-            new Matchfunctior("$funct", funct_0)
+            new Matchfunctior("$funct ( $A )", funct_1),
+            new Matchfunctior("$funct (  )", funct_0),
+            new Matchfunctior("$funct", funct_z)
         ]
-        for (var vj of genPattens_i(args, basePathens)) {
-    
-            // for (var vv of vj[1](vj[0])) {
-            //     if (isUndefined(vv) == false) 
-            //     {
-            //         yield vv
-            //         break
-            //     }
-            // }
-
+        for (var vj of genPattens_i(args, basePathens)) { 
 
             let pool = []
             for (var vv of vj[1](vj[0])) {
@@ -362,10 +332,11 @@ namespace SyntaxParser {
                     break
                 }
             }
+            
 
             //alimanta saida dos termos
             for (var [i, vv] of pool.entries()) yield vv
-            if (pool.length > 0 ) break
+            if (pool.length > 0) break
 
 
         }
@@ -373,72 +344,70 @@ namespace SyntaxParser {
 
     // Serarate Terms by
 
-    function splitTerms( x: ITerm[] ,sep:string )   {
-       let r = [] 
-       let acc : ITerm[] = []
-       let n = x.length
-       var x_par = 0
-       var x_bra = 0
-       var x_str = false 
+    function splitTerms(x: ITerm[], sep: string) {
+        let r = []
+        let acc: ITerm[] = []
+        let n = x.length
+        var x_par = 0
+        var x_bra = 0
+        var x_str = false
 
-       for(var i =0 ;i< n;++i) {
-           if (x[i].txt ==")") x_par = x_par -1
-           if (x[i].txt =="(") x_par = x_par +1
+        for (var i = 0; i < n; ++i) {
+            if (x[i].txt == ")") x_par = x_par - 1
+            if (x[i].txt == "(") x_par = x_par + 1
 
-           if (x[i].txt =="]") x_bra= x_bra -1 
-           if (x[i].txt =="[") x_bra= x_bra +1 
+            if (x[i].txt == "]") x_bra = x_bra - 1
+            if (x[i].txt == "[") x_bra = x_bra + 1
 
-           if (x[i].txt ==='"') x_str = !x_str
-                
-            if (x_bra ==0 && x_par ==0 && x_str ==false )  {
-                    if (x[i].txt ===sep ) {
-                        if (acc.length > 0 ) r.push(acc)
-                        acc =[]
-                        continue
-                    }
+            if (x[i].txt === '"') x_str = !x_str
+
+            if (x_bra == 0 && x_par == 0 && x_str == false) {
+                if (x[i].txt === sep) {
+                    if (acc.length > 0) r.push(acc)
+                    acc = []
+                    continue
                 }
+            }
             acc.push(x[i])
-       }
+        }
 
-       if (acc.length > 0 ) r.push(acc)
-       return r
+        if (acc.length > 0) r.push(acc)
+        return r
     }
 
     //==============================================================================================
 
     function* expr_inner(args_dict) {
         let pname: ITerm[] = args_dict["$X"]
-        if (isUndefined(pname) ) return undefined
-        for (var cy of codebodyMatch(pname)) yield cy        
+        if (isUndefined(pname)) return undefined
+        for (var cy of codebodyMatch(pname)) yield cy
     }
 
     function* expr_and(args_dict) {
         let x: ITerm[] = args_dict["$X"]
         let y: ITerm[] = args_dict["$Y"]
-        for (var cx of codebodyMatch(x))
-        {
+        for (var cx of codebodyMatch(x)) {
             if (isUndefined(cx)) continue
             for (var cy of codebodyMatch(y)) {
                 if (isUndefined(cy)) continue
                 yield new GTems.Functor("and", cx, cy)
             }
-        } 
+        }
     }
 
     function* expr_or(args_dict) {
         let x: ITerm[] = args_dict["$X"]
         let y: ITerm[] = args_dict["$Y"]
-        for (var cx of codebodyMatch(x))
-        {
+        for (var cx of codebodyMatch(x)) {
             if (isUndefined(cx)) continue
             for (var cy of codebodyMatch(y)) {
                 if (isUndefined(cy)) continue
                 yield new GTems.Functor("or", cx, cy)
             }
-        } 
+        }
     }
 
-    function* expr_xy_operator(op_name:string, args_dict) {
+    function* expr_xy_operator(op_name: string, args_dict) {
         let x: ITerm[] = args_dict["$X"]
         let y: ITerm[] = args_dict["$Y"]
         for (var cx of codebodyMatch(x)) {
@@ -451,7 +420,7 @@ namespace SyntaxParser {
     }
 
     function* expr_plus(args_dict) {
-        for (var x of  expr_xy_operator("plus",args_dict)) yield x
+        for (var x of expr_xy_operator("plus", args_dict)) yield x
     }
     function* expr_minus(args_dict) {
         for (var x of expr_xy_operator("minus", args_dict)) yield x
@@ -464,14 +433,24 @@ namespace SyntaxParser {
         for (var x of expr_xy_operator("<", args_dict)) yield x
     }
 
+    function* expr_GTE(args_dict) {
+        for (var x of expr_xy_operator(">=", args_dict)) yield x
+    }
+    function* expr_LTE(args_dict) {
+        for (var x of expr_xy_operator("<=", args_dict)) yield x
+    }
+
+
     function* expr_MUL(args_dict) {
         for (var x of expr_xy_operator("*", args_dict)) yield x
     }
     function* expr_DIV(args_dict) {
         for (var x of expr_xy_operator("/", args_dict)) yield x
     }
+    function* expr_MOD(args_dict) {
+        for (var x of expr_xy_operator("%", args_dict)) yield x
+    }
 
- 
     function* expr_UNIFY(args_dict) {
         for (var x of expr_xy_operator("unify", args_dict)) yield x
     }
@@ -482,11 +461,23 @@ namespace SyntaxParser {
     function* expr_funct(args_dict) {
         let fname: ITerm[] = args_dict["$funct"]
         if (fname.length != 1) return undefined
-
         let fargs: ITerm[] = args_dict["$args"]
-        let p1 = funct_resolve(fname, fargs)
-        yield p1
+        if ( isUndefined(fargs) ==false ) 
+        {  let p1 = funct_resolve(fname, fargs)
+           yield p1
+        }
     }
+
+    function* expr_funct_0(args_dict) {
+        let fname: ITerm[] = args_dict["$funct"]
+        if (fname.length != 1) return undefined
+     
+       
+         let p1 = funct_resolve(fname, [])
+           yield p1
+        
+    }
+
 
 
     function* expr_atorm_reserv(value: string) {
@@ -495,50 +486,61 @@ namespace SyntaxParser {
         else yield new GTems.Atom(value)
     }
 
-    
+
 
     function* expr_lst(args_dict) {
-        
-        let x: ITerm[] = args_dict["$X"]
-        if (isUndefined(x))  {
-            yield new GTems.GList( [] ) //empty list
-            return 
-        }
-        let xs :ITerm[][]=  splitTerms(x,",")
-         
-        let lst_x =[]
-         
-        for(var [i,xj] of xs.entries() )   
-        {
-            
-            for (var cx of codebodyMatch(xj))   {
-                if (isUndefined(cx)) 
-                {  
-                     return 
-                }
-                lst_x.push(cx)                    
-                break
-        }
 
-        yield new GTems.GList( lst_x)
-    }   
-}
+        let x: ITerm[] = args_dict["$X"]
+        if (isUndefined(x)) {
+            yield new GTems.GList([]) //empty list
+            return
+        }
+        let xs: ITerm[][] = splitTerms(x, ",")
+
+        let lst_x = []
+
+        for (var [i, xj] of xs.entries()) {
+
+            for (var cx of codebodyMatch(xj)) {
+                if (isUndefined(cx)) {
+                    return
+                }
+                lst_x.push(cx)
+                break
+            }
+
+            yield new GTems.GList(lst_x)
+        }
+    }
 
     function* expr_literal(args_dict) {
-        
+
         let x: ITerm[] = args_dict["$X"]
-        if (x.length == 1 )
-        {
-           let n = Number(x[0].txt)
+        if (x.length == 1) {
+            let n = Number(x[0].txt)
             if (isNaN(n) == false) {
                 yield new GTems.LiteralNumber(n)
                 return
             }
         }
 
-        yield x[0].getGeneralTerm()
+        if (x.length == 1 )       yield x[0].getGeneralTerm()
+
+        if (x.length == 2 ) {
+            if (x[0].txt =='+' ) 
+            {
+                let n = Number(x[1].txt)
+                if (isNaN(n) == false) { yield new GTems.LiteralNumber(n) } 
+            }
+            if (x[0].txt =='-' ) 
+            {
+                let n = Number(x[1].txt)
+                if (isNaN(n) == false) { yield new GTems.LiteralNumber( -n) } 
+            }
+
+        }
     }
-    
+
 
     function* codebodyMatch(args) {
         let basePathens = [
@@ -546,9 +548,9 @@ namespace SyntaxParser {
 
             new Matchfunctior("true", (x) => { return expr_atorm_reserv("true") }),
             new Matchfunctior("false", (x) => { return expr_atorm_reserv("false") }),
-            new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }) ,
-            new Matchfunctior("done", (x) => { return expr_atorm_reserv("done") }) ,
-            new Matchfunctior("!", (x) => { return expr_atorm_reserv("cut") }) ,
+            new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }),
+            new Matchfunctior("done", (x) => { return expr_atorm_reserv("done") }),
+            new Matchfunctior("!", (x) => { return expr_atorm_reserv("cut") }),
 
             new Matchfunctior("$X , $Y", expr_and),
             new Matchfunctior("$X ; $Y", expr_or),
@@ -561,20 +563,25 @@ namespace SyntaxParser {
             new Matchfunctior("$X > $Y", expr_GT),
             new Matchfunctior("$X < $Y", expr_LT),
 
+            new Matchfunctior("$X > = $Y", expr_GTE),
+            new Matchfunctior("$X < = $Y", expr_LTE),
+
+
             new Matchfunctior("$X * $Y", expr_MUL),
             new Matchfunctior("$X / $Y", expr_DIV),
+            new Matchfunctior("$X % $Y", expr_MOD),
+            
+            
+
+            new Matchfunctior("$funct (   )", expr_funct_0),
+            new Matchfunctior("$funct ( $args )", expr_funct),
+            new Matchfunctior("[ $X ]", expr_lst),
+            new Matchfunctior("[ ]", expr_lst),
 
 
-             new Matchfunctior("$funct ( $args )", expr_funct) ,
-             new Matchfunctior("[ $X ]", expr_lst) ,
-             new Matchfunctior("[ ]", expr_lst) ,
-
- 
-
-             new Matchfunctior("$X ", expr_literal)
+            new Matchfunctior("$X ", expr_literal)
         ]
-        for (var vj of genPattens_i(args, basePathens))
-        {
+        for (var vj of genPattens_i(args, basePathens)) {
             let pool = []
             for (var vv of vj[1](vj[0])) {
                 if (isUndefined(vv) == false) {
@@ -588,8 +595,8 @@ namespace SyntaxParser {
 
             //alimanta saida dos termos
             for (var [i, vv] of pool.entries()) yield vv
-            if (pool.length > 0 ) break
-            
+            if (pool.length > 0) break
+
         }
     }
     function* codeBody(y) {
@@ -600,114 +607,125 @@ namespace SyntaxParser {
     }
 
 
-    function syntax_xyz(args_dict, reFunc):boolean
-    {
+    function syntax_xyz(args_dict, reFunc): boolean {
         let x = args_dict["$X"]
         let y = args_dict["$Y"]
         let z = args_dict["$Z"]
         for (var px of predDecl(x)) {
-            for (var cy of codeBody(y)) { 
-                for (var cz of codeBody(z)) {   
-                reFunc(  px, cy, cz, 0 )
-                return true
+            for (var cy of codeBody(y)) {
+                for (var cz of codeBody(z)) {
+                    reFunc(px, cy, cz, [])
+                    return true
                 }
             }
         }
-        return false 
+        return false
     }
 
 
 
-    function syntax_xy(args_dict, reFunc):boolean  
-    {
+    function syntax_xy(args_dict, reFunc): boolean {
         let x = args_dict["$X"]
         let y = args_dict["$Y"]
-        for (var px of predDecl(x))
-        {
-            for (var cy of codeBody(y))        {
+        for (var px of predDecl(x)) {
+            for (var cy of codeBody(y)) {
 
-               // console.dir([px, cy, []], { depth: null })
-                reFunc(px, cy, undefined,0)
-                return true 
-            } 
+                // console.dir([px, cy, []], { depth: null })
+                reFunc(px, cy, undefined, [])
+                return true
+            }
         }
-        return false 
+        return false
     }
-    function syntax_x(args_dict, reFunc):boolean
-    {
+    function syntax_x(args_dict, reFunc): boolean {
         let x = args_dict["$X"]
-        for (var px of predDecl(x))
-        {
+        for (var px of predDecl(x)) {
             //console.dir([px, [], []], { depth: null })
-            reFunc(px, new GTems.LiteralBool(true), undefined,0)
-            return true 
-        } 
-        return false 
+            reFunc(px, new GTems.LiteralBool(true), undefined, [])
+            return true
+        }
+        return false
     }
 
-    function unless_xyz(args_dict, reFunc):boolean {
-        return syntax_xyz(args_dict , (p,body,cond,pr) => {  p.name = "ULS"+p.name; reFunc( p,body,cond, pr-1000) })
+    function unless_xyz(args_dict, reFunc): boolean {
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
     }
 
-    function unless_xy(args_dict, reFunc):boolean {
-        return syntax_xy(args_dict , (p,body,cond,pr) => {  p.name = "ULS"+p.name;  reFunc(p,body,cond, pr-1000) })
+    function unless_xy(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
     }
 
-    function unless_x(args_dict, reFunc):boolean {
-        return syntax_x(args_dict , (p,body,cond,pr) => {  p.name = "ULS"+p.name; reFunc( p,body,cond, pr-1000) })
+    function unless_x(args_dict, reFunc): boolean {
+        return syntax_x(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
     }
 
-
-
-    function syntax_xyz_low(args_dict, reFunc):boolean {
-        return syntax_xyz(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr-1000) })
+    function syntax_xyz_direct(args_dict, reFunc): boolean {
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["direct"])) })
     }
 
-    function syntax_xy_low(args_dict, reFunc):boolean {
-        return syntax_xy(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr-1000) })
+    function syntax_xy_direct(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["direct"])) })
     }
 
-    function syntax_x_low(args_dict, reFunc):boolean {
-        return syntax_x(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr-1000) })
-    }
-
-    function syntax_xyz_high(args_dict, reFunc):boolean {
-        return syntax_xyz(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr+1000) })
-    }
-
-    function syntax_xy_high(args_dict, reFunc):boolean {
-        return syntax_xy(args_dict , (p,body,cond,pr) => {   reFunc(p,body,cond, pr+1000) })
-    }
-
-    function syntax_x_high(args_dict, reFunc):boolean {
-        return syntax_x(args_dict , (p,body,cond,pr) => {  reFunc(p,body,cond, pr+1000) })
+    function syntax_x_direct(args_dict, reFunc): boolean {
+        return syntax_x(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["direct"])) })
     }
 
 
 
-    function before_x(args_dict, reFunc) :boolean
-    {
-       return  syntax_x(args_dict, reFunc)
-    } 
-    function before_xy(args_dict, reFunc):boolean  
-    {
-        return    syntax_xy(args_dict, reFunc)
+    function syntax_xyz_low(args_dict, reFunc): boolean {
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["lowP"])  ) })
     }
 
-    function before_xyz(args_dict, reFunc):boolean   
-    {
-        return    syntax_xyz(args_dict, reFunc)
+    function syntax_xy_low(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["lowP"])) })
+    }
+
+    function syntax_x_low(args_dict, reFunc): boolean {
+        return syntax_x(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["lowP"])   ) })
+    }
+
+    function syntax_xyz_high(args_dict, reFunc): boolean {
+        return syntax_xyz(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["highP"])  ) })
+    }
+
+    function syntax_xy_high(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["highP"])  ) })
+    }
+
+    function syntax_x_high(args_dict, reFunc): boolean {
+        return syntax_x(args_dict, (p, body, cond, poptions) => { reFunc(p, body, cond, poptions.concat(["highP"])  ) })
     }
 
 
+
+    function before_x(args_dict, reFunc): boolean {
+        return syntax_x(args_dict, reFunc)
+    }
+    function before_xy(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, reFunc)
+    }
+
+    function before_xyz(args_dict, reFunc): boolean {
+        return syntax_xyz(args_dict, reFunc)
+    }
+
+
+    class LineCode {
+        constructor(public line: string , public addr: number, public linenumber: number   ) { }
+    }
 
 
     function linesSplit(xcode: string) {
         let n = xcode.length
         let xc = ""
-        let xcs: string[] = []
+        let xcs: LineCode[] = []
         let p = 0;
+        let lc =0 
         for (var i = 0; i < n; ++i) {
+            if (xcode[i] == "\n") lc= lc+1
+            if (xcode[i] == "\r") continue
+
             if (xcode[i] == "{") {
                 p = p + 1
             }
@@ -716,9 +734,9 @@ namespace SyntaxParser {
             }
             if (p < 0) return undefined //error
 
-            if (xcode[i] == "\n") {
+            if (xcode[i] == "\n") {                
                 if (p == 0) {
-                    if (xc.length > 0) xcs.push(xc)
+                    if (xc.length > 0) xcs.push(new LineCode(xc, i, lc))
                     xc = ""
                 }
                 else {
@@ -729,65 +747,90 @@ namespace SyntaxParser {
                 xc = xc + xcode[i]
             }
         }
-        if (xc.length > 0) xcs.push(xc)
+        if (xc.length > 0) xcs.push(new LineCode(xc, i, lc))
         return xcs
     }
-    
 
-    export function MatchSyntaxDecl(xcode: string , resolutionFunc) {
 
-        let basePathens = [  
-            new Matchfunctior(  "do -  $X as $Y if $Z", syntax_xyz_low),
-            new Matchfunctior(  "do -  $X as $Y ", syntax_xy_low),            
-            new Matchfunctior(  "do -  $X  ", syntax_x_low),
-            
-            new Matchfunctior(  "do +  $X as $Y if $Z", syntax_xyz_high),
-            new Matchfunctior(  "do +  $X as $Y ", syntax_xy_high),            
-            new Matchfunctior(  "do +  $X  ", syntax_x_high),     
-            
-            new Matchfunctior(  "do  $X as $Y if $Z", syntax_xyz),
-            new Matchfunctior(  "do  $X as $Y ", syntax_xy),
-            new Matchfunctior(  "do  $X  ", syntax_x),
+    function isEmptyLine(x:string ):boolean
+    {
+        var regex = /^\s+$/;
+        if (x.match(regex)) return true 
+        return false 
+    }
 
-            new Matchfunctior(  "do  $X as $Y if $Z", syntax_xyz),
-            new Matchfunctior(  "do  $X as $Y ", syntax_xy),
-            new Matchfunctior(  "do  $X  ", syntax_x),
+    export function MatchSyntaxDecl(xcode: string, resolutionFunc) {
 
-            new Matchfunctior(  "unless  $X as $Y if $Z", unless_xyz),
-            new Matchfunctior(  "unless  $X as $Y ", unless_xy),
-            new Matchfunctior(  "unless  $X  ", unless_x),
+        let basePathens = [
 
-            
+            new Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
+            new Matchfunctior("do $X = > $Y ", syntax_xy_direct),
+          
+
+
+            new Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
+            new Matchfunctior("do -  $X as $Y ", syntax_xy_low),
+            new Matchfunctior("do -  $X  ", syntax_x_low),
+
+            new Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
+            new Matchfunctior("do +  $X as $Y ", syntax_xy_high),
+            new Matchfunctior("do +  $X  ", syntax_x_high),
+
+            new Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+            new Matchfunctior("do  $X as $Y ", syntax_xy),
+            new Matchfunctior("do  $X  ", syntax_x),
+
+            new Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+            new Matchfunctior("do  $X as $Y ", syntax_xy),
+            new Matchfunctior("do  $X  ", syntax_x),
+
+            new Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
+            new Matchfunctior("unless  $X as $Y ", unless_xy),
+            new Matchfunctior("unless  $X  ", unless_x),
+
+
             new Matchfunctior("do  $X  ?.", syntax_x),
 
 
-            new Matchfunctior(  "before  $X as  $Y if $Z", before_xyz),
-            new Matchfunctior(  "before  $X as  $Y ", before_xy),
-            new Matchfunctior("before  $X ", before_x) 
-                       
+            new Matchfunctior("before  $X as  $Y if $Z", before_xyz),
+            new Matchfunctior("before  $X as  $Y ", before_xy),
+            new Matchfunctior("before  $X ", before_x)
+
 
         ]
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {
-            let sline = splitStringInput(iline)           
 
+            if (isEmptyLine(iline.line)) continue
+            let sline = splitStringInput(iline.line)
+
+            let has_code: boolean = false
             for (var vj of genPattens_i(sline, basePathens)) {
-
-                let has_code:boolean = vj[1](vj[0], resolutionFunc) 
-                if (has_code)  break
+                has_code = vj[1](vj[0], resolutionFunc)
+                if (has_code) break
+            }
+            if (has_code ==false )
+            {
+               console.log("Syntax Error at Line "+ iline.linenumber )    
+               return 
             }
         }
     }
 
-    export function MatchSyntaxGoal(xcode: string, resolutionFunc)   { 
+    export function MatchSyntaxGoal(xcode: string, resolutionFunc) {
         let xlines = linesSplit(xcode)
-        for (var [i, iline] of xlines.entries())
-        {
-            let sline = splitStringInput(iline)
+        for (var [i, iline] of xlines.entries()) {
+            let sline = splitStringInput(iline.line)
+            let hasE = false 
             for (var px of codebodyMatch(sline)) 
             {
                 let s = resolutionFunc(px)
+                hasE = true 
                 break
+            }
+            if (hasE ==false ){
+                console.log("Syntax Error at Line "+ iline.linenumber )    
+                return 
             }
         }
     }
@@ -849,7 +892,7 @@ before going(south,Lighted Area) as {
    }  if location(player)!=location(flashlight)  
 `
 
-let prices =`
+let prices = `
 
     do price_contents($obj) as {  $contents = findall($x, inside($x ,$obj)) ,  maplist( price, $contents, $prices ) , sum($prices)   }  if container($obj)
 
@@ -862,28 +905,46 @@ let prices =`
     do price($obj) as { price($obj) - price_to_clean }  if dirt($obj)
     do+ price($obj) as {  max( 0 , price($obj) )  } 
     
-
+unless r($x,$y,$c) as r($x,$z,$c1),r($z,$y,$c2), $c = - 1
+do r( a,b,1).
+do r( b,c,1).
+do r( c,d,2).
+do r( d,f,1).
+do r( a,e,5).
+do r( e,f,5).
 
     `
 
 let simple = `
+ 
+ 
 
-do f([],$x,$x) .
  
- 
+
 `
 
 
-let ctx = new Interp.Context()
+function processScript(src:string):Interp.Context {
 
-SyntaxParser.MatchSyntaxDecl(simple, (x, y, z, prio) => {return ctx.addPredicateFunc(x, y, z,prio)})
+   let ctx = new Interp.Context()
+   SyntaxParser.MatchSyntaxDecl(src, (x, y, z, prio) => { return ctx.addPredicateFunc(x, y, z, prio) })
+   return ctx
+}
 
-console.log("______________________________")
- 
-SyntaxParser.MatchSyntaxGoal(" f( [],1,$u)   ", (x) => {   console.dir(ctx.all_query(x).map((s: Interp.Solution) => { return  s.toString() }), { depth: null }) })
-
-console.log("______________________________")
-
+var fs = require('fs');
 
 
-console.log('end log');
+let ctx :Interp.Context = undefined
+let script_filename = 'script.txt'
+if (fs.existsSync(script_filename) ) {
+    var s = fs.readFileSync(script_filename,'utf8');
+   ctx = processScript(s)
+}
+else{
+    throw "Script " + script_filename+" File Not found"
+}
+
+SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { console.dir(ctx.all_query(x).map((s ) => { return s.toString() }), { depth: null }) })
+
+
+console.log('end');

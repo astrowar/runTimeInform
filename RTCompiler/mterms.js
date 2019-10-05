@@ -22,6 +22,13 @@ var UTerm;
             this.str = _str;
         }
     }
+    class MatchOptional extends MatchTerm {
+        constructor(_inner) {
+            super();
+            this.inner = _inner;
+        }
+    }
+    ;
     class VarAssigned {
         constructor(_var_name, _value) {
             this.var_name = _var_name;
@@ -64,6 +71,10 @@ var UTerm;
             if (isBalanced(x)) {
                 return new MatchResult(true, [new VarAssigned(m.vname, x)]);
             }
+        }
+        if (m instanceof MatchOptional) {
+            let mv = m;
+            return isMatch(x, mv.inner);
         }
         return new MatchResult(false);
     }
@@ -117,6 +128,14 @@ var UTerm;
                     yield tt;
                 }
             }
+            //eh um termo optional ?
+            if (ms[0] instanceof MatchOptional) {
+                //testa sem o termo opcional
+                var mstail = ms.slice(1);
+                for (let tt of combinations(acc, xs, mstail)) {
+                    yield tt;
+                }
+            }
         }
         return;
     }
@@ -127,6 +146,10 @@ var UTerm;
     function termParser(x) {
         if (x[0] === "$") {
             return new MatchVar(x);
+        }
+        if (x[0] === "?") {
+            let inner = termParser(x.substr(1, x.length - 1));
+            return new MatchOptional(inner);
         }
         return new MatchStringLiteral(x);
         //return new MatchTerm()
@@ -194,7 +217,7 @@ var UTerm;
                     acc = "";
                     continue;
                 }
-                if ((",;(){}|\n[].+-*/!#=><").indexOf(c) >= 0) {
+                if ((",;(){}|\r\n[].+-*/!#=><").indexOf(c) >= 0) {
                     if (acc.length > 0)
                         terms.push(new TermCode(acc));
                     terms.push(new TermCode(c));
