@@ -223,15 +223,28 @@ namespace SyntaxParser {
         return true
     }
 
+    function funct_resolve_2(pname: ITerm[], args: ITerm[],args2: ITerm[]) {
+        if (pname.length != 1) return undefined
+        let arg_a = resolve_args(args)
+        if (isUndefined(arg_a)) return undefined
+
+      
+        let arg_a2 = resolve_args(args2)
+        if (isUndefined(arg_a2)) return undefined
+        
+        
+        if (isValidAtomName(pname) == false) return undefined 
+        let patm = pname[0].getGeneralTerm() 
+        arg_a = arg_a.concat(arg_a2)
+        return new GTems.Functor(patm.toString(), ...arg_a)
+    }
+
     function funct_resolve(pname: ITerm[], args: ITerm[]) {
         if (pname.length != 1) return undefined
         let arg_a = resolve_args(args)
-
         if (isUndefined(arg_a)) return undefined
         if (isValidAtomName(pname) == false) return undefined
-
-        let patm = pname[0].getGeneralTerm()
-
+        let patm = pname[0].getGeneralTerm() 
         return new GTems.Functor(patm.toString(), ...arg_a)
     }
 
@@ -258,13 +271,18 @@ namespace SyntaxParser {
     function* funct_2(args_dict) {
         let pname: ITerm[] = args_dict["$funct"]
         if (pname.length != 1) return undefined
-        //let arg_a = args_dict["$A"].map(function (t: ITerm) {      return t.gettext();       });
-        //let arg_b = args_dict["$B"].map(function (t: ITerm) { return t.gettext(); });
 
-        let p = funct_resolve(pname, [args_dict["$A"], args_dict["$B"]])
-        if (p != null) yield p
+        let arg_a = resolve_args(args_dict["$A"])
+        if ( isUndefined( arg_a) ==false ){
 
-        //yield new GTems.Functor(pname[0].gettext(), arg_a, arg_b)        
+                let arg_b = resolve_args(args_dict["$B"])
+                if ( isUndefined( arg_b) ==false ){
+                    let patm = pname[0].getGeneralTerm() 
+                    arg_a = arg_a.concat(arg_b)
+                    yield new GTems.Functor(patm.toString(), ...arg_a )
+            }
+        }
+      
     }
 
 
@@ -318,6 +336,7 @@ namespace SyntaxParser {
             //new Matchfunctior("$funct ( $A , $B )", funct_2),
             new Matchfunctior("$funct ( $A )", funct_1),
             new Matchfunctior("$funct (  )", funct_0),
+            new Matchfunctior(" ( $A , $funct , $B )", funct_2),
             new Matchfunctior("$funct", funct_z)
         ]
         for (var vj of genPattens_i(args, basePathens)) { 
@@ -468,6 +487,20 @@ namespace SyntaxParser {
         }
     }
 
+    function* expr_funct_m(args_dict) {
+        let fname: ITerm[] = args_dict["$funct"]
+        if (fname.length != 1) return undefined
+        let fargs_1: ITerm[] = args_dict["$a1"]
+        if ( isUndefined(fargs_1)  ==false  ) {
+
+            let fargs_2: ITerm[] = args_dict["$a2"]
+            if ( isUndefined(fargs_2) ==false ) 
+                {  let p1 = funct_resolve_2(fname, fargs_1 ,fargs_2)
+                yield p1
+                }
+      }
+    }
+
     function* expr_funct_0(args_dict) {
         let fname: ITerm[] = args_dict["$funct"]
         if (fname.length != 1) return undefined
@@ -575,6 +608,7 @@ namespace SyntaxParser {
 
             new Matchfunctior("$funct (   )", expr_funct_0),
             new Matchfunctior("$funct ( $args )", expr_funct),
+            new Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),
             new Matchfunctior("[ $X ]", expr_lst),
             new Matchfunctior("[ ]", expr_lst),
 
@@ -786,8 +820,7 @@ namespace SyntaxParser {
 
             new Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
             new Matchfunctior("unless  $X as $Y ", unless_xy),
-            new Matchfunctior("unless  $X  ", unless_x),
-
+            new Matchfunctior("unless  $X  ", unless_x), 
 
             new Matchfunctior("do  $X  ?.", syntax_x),
 
@@ -796,7 +829,7 @@ namespace SyntaxParser {
             new Matchfunctior("before  $X as  $Y ", before_xy),
             new Matchfunctior("before  $X ", before_x)
 
-
+ 
         ]
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {

@@ -200,7 +200,6 @@ var Interp;
                 if (opt == "direct")
                     pred_actual.set(PredicateKind.DIRECT);
             }
-            console.log(unique_name);
             this.predicades.unshift(pred_actual);
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
             return true;
@@ -370,8 +369,8 @@ var Interp;
                 yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, q, {});
                 return;
             }
-            console.log("undefined term :", q);
-            //throw new Error('Unassigned Term Evaluator');
+            console.log("Unassigned term :", q);
+            throw new Error('Unassigned Term Evaluator');
         }
         *evaluate_query(stk, sol, code) {
             if (code instanceof atoms_1.GTems.Atom) {
@@ -962,7 +961,6 @@ var Interp;
                 }
         }
         *query_ar0(stk, sol, f_name) {
-            console.log("zero");
             let hasY = false;
             for (var s of this.query_ar0_inner(stk, sol, PredicateKind.NOMINAL, f_name)) {
                 yield s;
@@ -1097,9 +1095,12 @@ var Interp;
                 arg1 = value_1[0];
             else
                 arg1 = atoms_1.GTems.atom_false();
-            //let arg1 = getValue(sol, _arg1)
-            //if (isUndefined(arg1)) arg1 = _arg1
             let query_satisf = false;
+            if (f_name == "write") {
+                console.log(arg1.toString());
+                yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                return;
+            }
             let hasFound = false;
             for (var [i, p] of this.predicades.entries()) {
                 // if (query_satisf) continue

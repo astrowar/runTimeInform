@@ -202,6 +202,21 @@ var SyntaxParser;
         }
         return true;
     }
+    function funct_resolve_2(pname, args, args2) {
+        if (pname.length != 1)
+            return undefined;
+        let arg_a = resolve_args(args);
+        if (util_1.isUndefined(arg_a))
+            return undefined;
+        let arg_a2 = resolve_args(args2);
+        if (util_1.isUndefined(arg_a2))
+            return undefined;
+        if (isValidAtomName(pname) == false)
+            return undefined;
+        let patm = pname[0].getGeneralTerm();
+        arg_a = arg_a.concat(arg_a2);
+        return new atoms_1.GTems.Functor(patm.toString(), ...arg_a);
+    }
     function funct_resolve(pname, args) {
         if (pname.length != 1)
             return undefined;
@@ -231,12 +246,15 @@ var SyntaxParser;
         let pname = args_dict["$funct"];
         if (pname.length != 1)
             return undefined;
-        //let arg_a = args_dict["$A"].map(function (t: ITerm) {      return t.gettext();       });
-        //let arg_b = args_dict["$B"].map(function (t: ITerm) { return t.gettext(); });
-        let p = funct_resolve(pname, [args_dict["$A"], args_dict["$B"]]);
-        if (p != null)
-            yield p;
-        //yield new GTems.Functor(pname[0].gettext(), arg_a, arg_b)        
+        let arg_a = resolve_args(args_dict["$A"]);
+        if (util_1.isUndefined(arg_a) == false) {
+            let arg_b = resolve_args(args_dict["$B"]);
+            if (util_1.isUndefined(arg_b) == false) {
+                let patm = pname[0].getGeneralTerm();
+                arg_a = arg_a.concat(arg_b);
+                yield new atoms_1.GTems.Functor(patm.toString(), ...arg_a);
+            }
+        }
     }
     function* funct_and(args_dict) {
         let pname1 = args_dict["$funct1"];
@@ -293,6 +311,7 @@ var SyntaxParser;
             //new Matchfunctior("$funct ( $A , $B )", funct_2),
             new Matchfunctior("$funct ( $A )", funct_1),
             new Matchfunctior("$funct (  )", funct_0),
+            new Matchfunctior(" ( $A , $funct , $B )", funct_2),
             new Matchfunctior("$funct", funct_z)
         ];
         for (var vj of genPattens_i(args, basePathens)) {
@@ -447,6 +466,19 @@ var SyntaxParser;
             yield p1;
         }
     }
+    function* expr_funct_m(args_dict) {
+        let fname = args_dict["$funct"];
+        if (fname.length != 1)
+            return undefined;
+        let fargs_1 = args_dict["$a1"];
+        if (util_1.isUndefined(fargs_1) == false) {
+            let fargs_2 = args_dict["$a2"];
+            if (util_1.isUndefined(fargs_2) == false) {
+                let p1 = funct_resolve_2(fname, fargs_1, fargs_2);
+                yield p1;
+            }
+        }
+    }
     function* expr_funct_0(args_dict) {
         let fname = args_dict["$funct"];
         if (fname.length != 1)
@@ -530,6 +562,7 @@ var SyntaxParser;
             new Matchfunctior("$X % $Y", expr_MOD),
             new Matchfunctior("$funct (   )", expr_funct_0),
             new Matchfunctior("$funct ( $args )", expr_funct),
+            new Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),
             new Matchfunctior("[ $X ]", expr_lst),
             new Matchfunctior("[ ]", expr_lst),
             new Matchfunctior("$X ", expr_literal)

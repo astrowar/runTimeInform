@@ -206,7 +206,7 @@ export namespace Interp {
             }
 
 
-            console.log( unique_name)
+ 
             this.predicades.unshift(pred_actual)
 
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b) })
@@ -417,8 +417,8 @@ export namespace Interp {
             }
 
 
-            console.log("undefined term :", q)
-            //throw new Error('Unassigned Term Evaluator');
+            console.log("Unassigned term :", q)
+            throw new Error('Unassigned Term Evaluator');
 
 
         }
@@ -1062,7 +1062,7 @@ export namespace Interp {
 
         public *query_ar0(stk: QueryStack, sol: Solution.Solution, f_name: string ) {
 
-            console.log("zero")
+        
             let hasY: boolean = false
             for (var s of this.query_ar0_inner(stk, sol, PredicateKind.NOMINAL,  f_name )) {
                 yield s
@@ -1219,12 +1219,15 @@ export namespace Interp {
             if (value_1.length > 0) arg1 = value_1[0]
             else arg1 = GTems.atom_false()
 
-            //let arg1 = getValue(sol, _arg1)
-            //if (isUndefined(arg1)) arg1 = _arg1
+    
             let query_satisf: Boolean = false
 
 
-
+            if (f_name == "write") {
+                console.log( arg1.toString() )
+                yield   new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                return
+            }
           
 
 

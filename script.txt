@@ -1,5 +1,23 @@
  
-do main() => repeat(true),write()
+
+do (a, link , b) 
+do (b, link , d)  
+do (c, link , e)  
+do (d, link , f)  
+do (f, link , g)  
+do (g, link , k)  
+do (b, link , c)  
+do (e, link , m)  
+
+unless joint($r1,$r2) as [$r1,$r2]
+do joint($a,$b) as  $a = [$x,$y] , $b = [ $y, $z] ,[$x,$y,$z]
+do joint($a,$b) as    $b = [ $y, $z] ,[$a,$y,$z]
+do joint($a,$b) as    $a = [ $x, $y] ,[$x,$y,$b]
+
+do ($x, route , $y) as ($x, link , $y) , joint($x,$y)
+do ($x, route , $y) as  $r1 =  ($x, route , $z),$r2 =   ($z, route , $y)  ,  joint($r1,$r2)
+
+do main() => $r = ( a,route,m) , write(  $r )
 
 
  
