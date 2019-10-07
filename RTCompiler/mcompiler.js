@@ -393,6 +393,14 @@ var SyntaxParser;
             }
         }
     }
+    function* expr_not(args_dict) {
+        let x = args_dict["$X"];
+        for (var cx of codebodyMatch(x)) {
+            if (util_1.isUndefined(cx))
+                continue;
+            yield new atoms_1.GTems.Functor("not", cx);
+        }
+    }
     function* expr_plus(args_dict) {
         for (var x of expr_xy_operator("plus", args_dict))
             yield x;
@@ -435,6 +443,10 @@ var SyntaxParser;
     }
     function* expr_EQUAL(args_dict) {
         for (var x of expr_xy_operator("equal", args_dict))
+            yield x;
+    }
+    function* expr_NEQUAL(args_dict) {
+        for (var x of expr_xy_operator("not_equal", args_dict))
             yield x;
     }
     function* expr_funct(args_dict) {
@@ -490,8 +502,6 @@ var SyntaxParser;
                 return;
             }
         }
-        if (x.length == 1)
-            yield x[0].getGeneralTerm();
         if (x.length == 2) {
             if (x[0].txt == '+') {
                 let n = Number(x[1].txt);
@@ -506,6 +516,13 @@ var SyntaxParser;
                 }
             }
         }
+        if (x.length == 1)
+            yield x[0].getGeneralTerm();
+        let all_str = [];
+        for (var [i, xx] of x.entries()) {
+            all_str.push(xx.gettext());
+        }
+        yield new atoms_1.GTems.Atom(all_str.join(" "));
     }
     function* codebodyMatch(args) {
         let basePathens = [
@@ -518,6 +535,7 @@ var SyntaxParser;
             new Matchfunctior("$X , $Y", expr_and),
             new Matchfunctior("$X ; $Y", expr_or),
             new Matchfunctior("$X = = $Y", expr_EQUAL),
+            new Matchfunctior("$X ! = $Y", expr_NEQUAL),
             new Matchfunctior("$X = $Y", expr_UNIFY),
             new Matchfunctior("$X + $Y", expr_plus),
             new Matchfunctior("$X - $Y", expr_minus),
@@ -528,6 +546,7 @@ var SyntaxParser;
             new Matchfunctior("$X * $Y", expr_MUL),
             new Matchfunctior("$X / $Y", expr_DIV),
             new Matchfunctior("$X % $Y", expr_MOD),
+            new Matchfunctior("not ( $X  )", expr_not),
             new Matchfunctior("$funct (   )", expr_funct_0),
             new Matchfunctior("$funct ( $args )", expr_funct),
             new Matchfunctior("[ $X ]", expr_lst),

@@ -31,6 +31,8 @@ var Solution;
         }
         add(var_name, value) {
             let nsol = new Solution(this.state, this.value, {});
+            if (var_name == "_")
+                throw new Error('variable is cannob be assigned');
             for (var i in this.var_values) {
                 nsol.var_values[i] = this.var_values[i];
             }
@@ -85,9 +87,13 @@ var Solution;
             if (a.value.name == "cut")
                 s = new Solution(SolutionState.QCut, b.value, {});
         for (var i in a.var_values) {
+            if (i == "_")
+                throw "anonimous variable bind ?";
             s.var_values[i] = a.var_values[i];
         }
         for (var i in b.var_values) {
+            if (i == "_")
+                throw "anonimous variable bind ?";
             s.var_values[i] = b.var_values[i];
         }
         return s;
@@ -149,6 +155,8 @@ var Solution;
         if (y instanceof atoms_1.GTems.Variable) {
             return bindVarVar(sol, x, y);
         }
+        if (x.name == "_")
+            return new Solution(SolutionState.QTrue, y, {});
         // bind da variavel e retorna nova solucao derivada 
         let xx = getBindTail(sol, x);
         let value_binded = getBindVarValue(sol, xx);
@@ -162,6 +170,10 @@ var Solution;
         return new Solution(SolutionState.QFalse, atoms_1.GTems.atom_false(), {});
     }
     function bindVarVar(sol, x, y) {
+        if (x.name == "_")
+            return sol;
+        if (y.name == "_")
+            return sol;
         if (x.name == y.name)
             return sol;
         let xx = getBindTail(sol, x);
@@ -183,6 +195,10 @@ var Solution;
     function bind(sol, x, y) {
         if (isValid(sol) == false)
             return sol; //nem tenta
+        if (util_1.isArray(y))
+            throw new Error("array as term, use List");
+        if (util_1.isArray(x))
+            throw new Error("array as term, use List");
         if (util_1.isArray(y))
             return bind(sol, x, y[0]);
         if (util_1.isArray(x))

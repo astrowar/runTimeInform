@@ -419,6 +419,17 @@ namespace SyntaxParser {
         }
     }
 
+ 
+    function* expr_not(args_dict) {
+        let x: ITerm[] = args_dict["$X"]
+        for (var cx of codebodyMatch(x)) {
+            if (isUndefined(cx)) continue
+            yield new GTems.Functor("not", cx)
+        }
+    }
+
+
+
     function* expr_plus(args_dict) {
         for (var x of expr_xy_operator("plus", args_dict)) yield x
     }
@@ -456,6 +467,9 @@ namespace SyntaxParser {
     }
     function* expr_EQUAL(args_dict) {
         for (var x of expr_xy_operator("equal", args_dict)) yield x
+    }
+    function* expr_NEQUAL(args_dict) {
+        for (var x of expr_xy_operator("not_equal", args_dict)) yield x
     }
 
     function* expr_funct(args_dict) {
@@ -524,7 +538,7 @@ namespace SyntaxParser {
             }
         }
 
-        if (x.length == 1 )       yield x[0].getGeneralTerm()
+     
 
         if (x.length == 2 ) {
             if (x[0].txt =='+' ) 
@@ -539,6 +553,15 @@ namespace SyntaxParser {
             }
 
         }
+
+        if (x.length == 1 )       yield x[0].getGeneralTerm()
+
+        let all_str = []
+        for( var [i,xx] of x.entries())
+        {
+            all_str.push(xx.gettext() )
+        }
+        yield new GTems.Atom(all_str.join(" "))  
     }
 
 
@@ -555,6 +578,7 @@ namespace SyntaxParser {
             new Matchfunctior("$X , $Y", expr_and),
             new Matchfunctior("$X ; $Y", expr_or),
             new Matchfunctior("$X = = $Y", expr_EQUAL),
+            new Matchfunctior("$X ! = $Y", expr_NEQUAL),
             new Matchfunctior("$X = $Y", expr_UNIFY),
 
             new Matchfunctior("$X + $Y", expr_plus),
@@ -572,7 +596,7 @@ namespace SyntaxParser {
             new Matchfunctior("$X % $Y", expr_MOD),
             
             
-
+            new Matchfunctior("not ( $X  )", expr_not),
             new Matchfunctior("$funct (   )", expr_funct_0),
             new Matchfunctior("$funct ( $args )", expr_funct),
             new Matchfunctior("[ $X ]", expr_lst),
