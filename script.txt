@@ -1,24 +1,44 @@
  
 
-do (a, link , b) 
-do (b, link , d)  
-do (c, link , e)  
-do (d, link , f)  
-do (f, link , g)  
-do (g, link , k)  
-do (b, link , c)  
-do (e, link , m)  
+do obj($x) as fruit($x);container($x)
 
-unless joint($r1,$r2) as [$r1,$r2]
-do joint($a,$b) as  $a = [$x,$y] , $b = [ $y, $z] ,[$x,$y,$z]
-do joint($a,$b) as    $b = [ $y, $z] ,[$a,$y,$z]
-do joint($a,$b) as    $a = [ $x, $y] ,[$x,$y,$b]
+do desc(apple) as apple
+do desc(orange) as orange
+do desc(box) as convencional box
 
-do ($x, route , $y) as ($x, link , $y) , joint($x,$y)
-do ($x, route , $y) as  $r1 =  ($x, route , $z),$r2 =   ($z, route , $y)  ,  joint($r1,$r2)
+do container(box)
+do fruit(apple)
+do fruit(orange)
+do inbastek(apple)
 
-do main() => $r = ( a,route,m) , write(  $r )
+do desc($x) => fruit($x), [yumm, desc($x)]
+do desc($x) => inbastek($x) ,[desc($x) ,in basket ]
 
+
+do flatten2([], [] )  as $FlatL = [] 
+do flatten2($x, $FlatL )  as atom($x), $FlatL = [$x] 
+do flatten2($LLs, $FlatL) =>    head($L,$LLs ) , flatten2($L, $nL), tail($Ls,$LLs),flatten2($Ls, $nLs) , append( $nL , $nLs, $FlatL)  
+
+
+
+do u($abL, $Z) as HT( $a, $bL, $abL ), HT( $b, $L, $bL ),{ $a=$b, u($bL,$Z) }; { $a != $b, u($bL,$Lu) , append([$a] , $Lu , $Z) }
+unless u($x, $y) as $x = $y
 
  
 
+
+do link(a,b)
+do link(b,c)
+do link(c,d)
+do link(b,e)
+
+do route($x,$y) as  link($x,$y), [$x,$y]
+unless route($x,$y) as  $r1 = route($x,$z), $r2 = route($z,$y), [ $r1,$r2]
+
+
+do qmain() as  u([1,2,2,3,4,4,6,7,7,7,7,7],$x),$x
+do qmain() as  $rr = route(a,d) , flatten2( $rr, $ro), u($ro , $ru), $ru
+ 
+ 
+do qmain() as append($x,[3,4],[1,2,3,4]),$x
+do main() as append($x,$y,[1,2,3,4]),[$x,$y]

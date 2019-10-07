@@ -1,4 +1,4 @@
-﻿import { isUndefined } from "util";
+import { isUndefined } from "util";
 
 export namespace GTems {
 

@@ -189,20 +189,27 @@ var Interp;
             let p_priority = 0;
             for (var [i, opt] of p_options.entries()) {
                 if (opt == "lowp")
-                    p_priority = p_priority - 1000;
+                    p_priority = p_priority - 10000;
                 if (opt == "highp")
-                    p_priority = p_priority + 1000;
+                    p_priority = p_priority + 10000;
             }
-            let pred_actual = new PredicateEntry(unique_name, p, code, condition, p_priority);
+            let pred_actual = new PredicateEntry(unique_name, p, code, condition, p_priority + this.predicades_id);
             for (var [i, opt] of p_options.entries()) {
                 if (opt == "unless")
                     pred_actual.set(PredicateKind.UNLESS);
                 if (opt == "direct")
                     pred_actual.set(PredicateKind.DIRECT);
             }
+            console.log(unique_name);
             this.predicades.unshift(pred_actual);
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
             return true;
+        }
+        isList(v) {
+            if (v instanceof atoms_1.GTems.GList) {
+                return true;
+            }
+            return false;
         }
         isVar(v) {
             if (v instanceof atoms_1.GTems.Variable) {
@@ -217,7 +224,8 @@ var Interp;
             if (q1 instanceof atoms_1.GTems.GList) {
                 let qcopy = q1.clone();
                 qcopy.items.push(q2);
-                yield solution_1.Solution.fuse(sol, new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, qcopy, {}));
+                let r = solution_1.Solution.fuse(sol, new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, qcopy, {}));
+                yield r;
                 return;
             }
             return;
@@ -369,8 +377,8 @@ var Interp;
                 yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, q, {});
                 return;
             }
-            console.log("Unassigned term :", q);
-            throw new Error('Unassigned Term Evaluator');
+            console.log("undefined term :", q);
+            //throw new Error('Unassigned Term Evaluator');
         }
         *evaluate_query(stk, sol, code) {
             if (code instanceof atoms_1.GTems.Atom) {
@@ -392,6 +400,10 @@ var Interp;
                 }
             }
             if (code instanceof atoms_1.GTems.Variable) {
+                if (code.name == "_") {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, code, {});
+                    return;
+                }
                 let code_value = solution_1.Solution.getValue(sol, code);
                 if (util_1.isUndefined(code_value)) {
                     yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, code, {});
@@ -512,8 +524,8 @@ var Interp;
             if (arg2 instanceof atoms_1.GTems.GList) {
                 if (arg2.items.length > 0) {
                     let head = arg2.items[0];
-                    let s = solution_1.Solution.bind(sol, head, arg1);
-                    yield s;
+                    let ss2 = solution_1.Solution.bind(sol, head, arg1);
+                    yield ss2;
                 }
             }
             // return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
@@ -535,6 +547,65 @@ var Interp;
                 }
             }
             //return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
+        }
+        *buildIn_append(stk, sol, arg1, arg2, arg3) {
+            let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+            if (arg1 instanceof atoms_1.GTems.GList) {
+                if (arg2 instanceof atoms_1.GTems.GList) {
+                    let qs = arg1.items.concat(arg2.items);
+                    let ql = new atoms_1.GTems.GList(qs);
+                    let r = solution_1.Solution.bind(sol_next, ql, arg3);
+                    yield r;
+                    return;
+                }
+            }
+            if (arg3 instanceof atoms_1.GTems.GList) {
+                if ((arg1 instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.GList)) {
+                    let nlast = arg2.items.length;
+                    let q2 = new atoms_1.GTems.GList(arg3.items.slice(nlast));
+                    let r = solution_1.Solution.bind(sol_next, q2, arg2);
+                    if (solution_1.Solution.isValid(r)) {
+                        let q1 = new atoms_1.GTems.GList(arg3.items.slice(0, nlast));
+                        yield solution_1.Solution.bind(r, q1, arg1);
+                    }
+                }
+                if ((arg1 instanceof atoms_1.GTems.GList) && (arg2 instanceof atoms_1.GTems.Variable)) {
+                    let nlast = arg3.items.length - arg1.items.length;
+                    let q1 = new atoms_1.GTems.GList(arg3.items.slice(0, arg1.items.length));
+                    let q2 = new atoms_1.GTems.GList(arg3.items.slice(nlast));
+                    let r = solution_1.Solution.bind(sol_next, q1, arg1);
+                    if (solution_1.Solution.isValid(r)) {
+                        yield solution_1.Solution.bind(r, q2, arg2);
+                    }
+                }
+                if ((arg1 instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.Variable)) {
+                    for (var i = 0; i <= arg3.items.length; i++) {
+                        let q1 = new atoms_1.GTems.GList(arg3.items.slice(0, i));
+                        let q2 = new atoms_1.GTems.GList(arg3.items.slice(i));
+                        let r = solution_1.Solution.bind(sol_next, q1, arg1);
+                        if (solution_1.Solution.isValid(r)) {
+                            yield solution_1.Solution.bind(r, q2, arg2);
+                        }
+                    }
+                }
+                return;
+            }
+            throw new Error("invalid arguments");
+        }
+        *buildIn_ht(stk, sol, arg1, arg2, arg3) {
+            let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+            if (arg3 instanceof atoms_1.GTems.GList) {
+                if (arg3.items.length > 0) {
+                    let t = arg3.clone();
+                    let h = t.items[0];
+                    t.items.shift();
+                    let s = solution_1.Solution.bind(sol, t, arg2);
+                    s = solution_1.Solution.bind(s, h, arg1);
+                    yield s;
+                }
+                return;
+            }
+            throw new Error("invalid arguments");
         }
         *eval_rec(stk, sol, acc, args) {
             if (args.length == 0) {
@@ -635,6 +706,16 @@ var Interp;
             let arg1 = _arg1;
             let arg2 = _arg2;
             let arg3 = _arg3;
+            if (f_name == "append") {
+                for (var ssk of this.buildIn_append(stk, sol, arg1, arg2, arg3))
+                    yield ssk;
+                return;
+            }
+            if (f_name == "HT") {
+                for (var ssk of this.buildIn_ht(stk, sol, arg1, arg2, arg3))
+                    yield ssk;
+                return;
+            }
             let hasFound = false;
             let query_satisf = false;
             for (var [i, p] of this.predicades.entries()) {
@@ -687,6 +768,7 @@ var Interp;
                         for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
                             if (solution_1.Solution.isValid(sol_cond)) {
                                 cond_satisf = true;
+                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
                                 break; //apenas a primeira true ja serve
                             }
                         }
@@ -790,6 +872,16 @@ var Interp;
                     yield new solution_1.Solution.Solution(bvar_e.state, atoms_1.GTems.atom_true(), {});
                 else
                     yield new solution_1.Solution.Solution(bvar_e.state, atoms_1.GTems.atom_false(), {});
+                return;
+            }
+            if (f_name == "not_equal") {
+                var bvar_e = solution_1.Solution.bind(sol, arg1, arg2);
+                if (solution_1.Solution.isValid(bvar_e)) {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
+                }
+                else {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                }
                 return;
             }
             if (f_name == "append") {
@@ -913,6 +1005,7 @@ var Interp;
                         for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
                             if (solution_1.Solution.isValid(sol_cond)) {
                                 cond_satisf = true;
+                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
                                 break; //apenas a primeira true ja serve
                             }
                         }
@@ -1014,6 +1107,7 @@ var Interp;
                         for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
                             if (solution_1.Solution.isValid(sol_cond)) {
                                 cond_satisf = true;
+                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
                                 break; //apenas a primeira true ja serve
                             }
                         }
@@ -1070,6 +1164,22 @@ var Interp;
                     }
                 }
             }
+            if (f_name == "not") {
+                let has_yielded = false;
+                for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
+                    if (solution_1.Solution.isValid(x1)) {
+                        has_yielded = true;
+                        yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
+                    }
+                    else {
+                        has_yielded = true;
+                        yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                    }
+                }
+                if (has_yielded == false)
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                return;
+            }
             for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                 if (solution_1.Solution.isValid(x1)) {
                     let nsol = solution_1.Solution.fuse(sol, x1);
@@ -1095,7 +1205,27 @@ var Interp;
                 arg1 = value_1[0];
             else
                 arg1 = atoms_1.GTems.atom_false();
+            //let arg1 = getValue(sol, _arg1)
+            //if (isUndefined(arg1)) arg1 = _arg1
             let query_satisf = false;
+            if (f_name == "atom") {
+                if (arg1 instanceof atoms_1.GTems.Atom) {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                }
+                else {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
+                }
+                return;
+            }
+            if (f_name == "list") {
+                if (arg1 instanceof atoms_1.GTems.GList) {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                }
+                else {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
+                }
+                return;
+            }
             if (f_name == "write") {
                 console.log(arg1.toString());
                 yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
@@ -1137,6 +1267,7 @@ var Interp;
                         for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
                             if (solution_1.Solution.isValid(sol_cond)) {
                                 cond_satisf = true;
+                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
                                 break; //apenas a primeira true ja serve
                             }
                         }

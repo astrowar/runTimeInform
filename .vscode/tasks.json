@@ -1,0 +1,25 @@
+{
+// Veja https://go.microsoft.com/fwlink/?LinkId=733558 
+    // para a documentação sobre o formato tasks.json
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "watch",
+            "type": "shell",
+            "command": "tsc",
+             
+            "options": {"cwd": "${workspaceFolder}/RTcompiler" },
+            "args": [
+                "--build"
+            ],
+            "problemMatcher": [
+                "$tsc-watch",
+                "$tslint5"
+            ],
+            "presentation": {
+                "reveal": "silent",
+                "panel": "new"
+            }
+        }
+    ]
+}

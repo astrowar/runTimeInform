@@ -37,6 +37,7 @@ export namespace Solution{
         add(var_name: string, value: GTems.GBase): Solution {
             let nsol = new Solution(this.state, this.value, {})
 
+            if (var_name == "_")  throw new Error('variable is cannob be assigned');
             for (var i in this.var_values) {
                 nsol.var_values[i] = this.var_values[i]
             }
@@ -99,9 +100,11 @@ export namespace Solution{
 
 
         for (var i in a.var_values) {
+            if (i=="_") throw "anonimous variable bind ?"
             s.var_values[i] = a.var_values[i]
         }
         for (var i in b.var_values) {
+            if (i=="_") throw "anonimous variable bind ?"
             s.var_values[i] = b.var_values[i]
         }
 
@@ -167,9 +170,13 @@ export namespace Solution{
     }
 
     function bindVar(sol: Solution, x: GTems.Variable, y: GTems.GBase): Solution {
+
+        
         if (y instanceof GTems.Variable) {
             return bindVarVar(sol, x, y)
         }
+
+        if (x.name == "_") return new Solution(SolutionState.QTrue, y, {}) 
 
         // bind da variavel e retorna nova solucao derivada 
         let xx: GTems.Variable = getBindTail(sol, x)
@@ -188,6 +195,9 @@ export namespace Solution{
 
 
     function bindVarVar(sol: Solution, x: GTems.Variable, y: GTems.Variable): Solution {
+
+        if (x.name == "_") return sol
+        if (y.name == "_") return sol
 
         if (x.name == y.name) return sol
 
@@ -216,6 +226,11 @@ export namespace Solution{
 
     export function bind(sol: Solution, x: GTems.GBase, y: GTems.GBase) {
         if (isValid(sol) == false) return sol //nem tenta
+
+        if (isArray(y)) throw new Error("array as term, use List")
+        if (isArray(x)) throw new Error("array as term, use List")
+        
+
 
         if (isArray(y)) return bind(sol, x, y[0])
         if (isArray(x)) return bind(sol, x[0], y)

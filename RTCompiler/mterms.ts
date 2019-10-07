@@ -210,6 +210,11 @@ export namespace UTerm {
                 return new GTems.LiteralBool(false)
             }
 
+            if (this.txt  == "_") {
+                return new GTems.Variable("_")
+            }
+
+
             if (this.txt[0] == "$") {
                 return new GTems.Variable((this.txt.slice(1)))
             }

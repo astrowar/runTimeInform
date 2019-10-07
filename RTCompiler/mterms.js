@@ -177,6 +177,9 @@ var UTerm;
             if (this.txt == "false") {
                 return new atoms_1.GTems.LiteralBool(false);
             }
+            if (this.txt == "_") {
+                return new atoms_1.GTems.Variable("_");
+            }
             if (this.txt[0] == "$") {
                 return new atoms_1.GTems.Variable((this.txt.slice(1)));
             }
