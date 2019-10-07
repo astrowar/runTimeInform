@@ -578,6 +578,16 @@ var Interp;
                         yield solution_1.Solution.bind(r, q2, arg2);
                     }
                 }
+                if ((arg1 instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.Variable)) {
+                    for (var i = 0; i <= arg3.items.length; i++) {
+                        let q1 = new atoms_1.GTems.GList(arg3.items.slice(0, i));
+                        let q2 = new atoms_1.GTems.GList(arg3.items.slice(i));
+                        let r = solution_1.Solution.bind(sol_next, q1, arg1);
+                        if (solution_1.Solution.isValid(r)) {
+                            yield solution_1.Solution.bind(r, q2, arg2);
+                        }
+                    }
+                }
                 return;
             }
             throw new Error("invalid arguments");

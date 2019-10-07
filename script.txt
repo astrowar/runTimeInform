@@ -41,4 +41,4 @@ do qmain() as  $rr = route(a,d) , flatten2( $rr, $ro), u($ro , $ru), $ru
  
  
 do qmain() as append($x,[3,4],[1,2,3,4]),$x
-do main() as append([1,2,3],$x,[1,2,3,4]),$x
+do main() as append($x,$y,[1,2,3,4]),[$x,$y]

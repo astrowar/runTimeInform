@@ -662,6 +662,20 @@ export namespace Interp {
                         }
 
 
+                        if ((arg1 instanceof GTems.Variable  ) && (arg2 instanceof GTems.Variable  ))
+                        {
+                            for(var i =0;i<= arg3.items.length;i++)
+                            {                                
+                                let q1 = new GTems.GList( arg3.items.slice(0, i) )   
+                                let q2 = new GTems.GList( arg3.items.slice(i) )                        
+                                let r =   Solution.bind(sol_next, q1, arg1) 
+                                if ( Solution.isValid(r)) {                                   
+                                    yield  Solution.bind(r, q2, arg2) 
+                                }
+                            }
+                        }
+
+
                         return 
                     }
                     
