@@ -1,4 +1,4 @@
-import { isUndefined } from "util";
+﻿import { isUndefined } from "util";
 
 export namespace GTems {
 
@@ -63,6 +63,7 @@ export namespace GTems {
         public name: string
         constructor(v_name: string) { 
             super()
+             
             if (isValidAtomName(v_name) == false) {
                 throw new Error('name invalid for pred ' + v_name);
             } 

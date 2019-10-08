@@ -14,7 +14,7 @@
             ],
             "problemMatcher": [
                 "$tsc-watch",
-                "$tslint5"
+         
             ],
             "presentation": {
                 "reveal": "silent",

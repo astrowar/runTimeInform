@@ -621,6 +621,41 @@ export namespace Interp {
             //return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
         }
 
+        *buildIn_member(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase ) {
+            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                        
+                if (arg2 instanceof GTems.GList  )
+                {                    
+                    for(var i =0; i< arg2.items.length ; i++){
+                        let r =   Solution.bind(sol_next, arg2.items[i], arg1) 
+                        if ( Solution.isValid(r)) {  yield r }                        
+                    }
+                    return 
+                    
+                }
+                throw new Error("invalid argument for member, segond arg must be a list")  
+            }
+
+
+         
+            *buildIn_nextto(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, arg3: GTems.GBase) {
+                let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                if (arg3 instanceof GTems.GList  )
+                {
+                    for(var i =0;i<= arg3.items.length-1;i++)
+                    {
+                        let x1 = arg3.items[i]
+                        let r =   Solution.bind(sol_next, x1, arg1) 
+                        if ( Solution.isValid(r)) { 
+                           let r2 =   Solution.bind(r, arg3.items[i+1], arg2) 
+                           if ( Solution.isValid(r2)) { 
+                                yield r2
+                           }
+                        }
+                    } 
+                } 
+            }
+
 
         *buildIn_append(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, arg3: GTems.GBase) {
             let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
@@ -641,6 +676,8 @@ export namespace Interp {
                     {
                         if ((arg1 instanceof GTems.Variable  ) && (arg2 instanceof GTems.GList  ))
                         {
+                            if (arg2.items.length > arg3.items.length) return 
+
                             let nlast = arg2.items.length;
                             let q2 = new GTems.GList( arg3.items.slice(nlast) )
                             let r =   Solution.bind(sol_next, q2, arg2) 
@@ -652,6 +689,8 @@ export namespace Interp {
 
                         if ((arg1 instanceof GTems.GList  ) && (arg2 instanceof GTems.Variable  ))
                         {
+                            if (arg1.items.length > arg3.items.length) return 
+
                             let nlast =  arg3.items.length -  arg1.items.length;
                             let q1 = new GTems.GList( arg3.items.slice(0, arg1.items.length) )   
                             let q2 = new GTems.GList( arg3.items.slice(nlast) )                        
@@ -670,7 +709,8 @@ export namespace Interp {
                                 let q2 = new GTems.GList( arg3.items.slice(i) )                        
                                 let r =   Solution.bind(sol_next, q1, arg1) 
                                 if ( Solution.isValid(r)) {                                   
-                                    yield  Solution.bind(r, q2, arg2) 
+                                    let r2 =   Solution.bind(r, q2, arg2) 
+                                    yield r2
                                 }
                             }
                         }
@@ -830,6 +870,11 @@ export namespace Interp {
                 for (var ssk of this.buildIn_ht(stk, sol, arg1, arg2, arg3)) yield ssk                
                 return
             }
+            if (f_name == "nextto") {             
+                for (var ssn of this.buildIn_nextto(stk, sol, arg1, arg2, arg3)) yield ssn                
+                return
+            }
+         
 
 
             let hasFound = false
@@ -1012,10 +1057,16 @@ export namespace Interp {
             }
 
 
-            if (f_name == "append") {
+            // if (f_name == "append") {
+            //     for (var qq of this.query_append(sol, arg1, arg2)) {
+            //         yield qq
+            //     }
+            //     return
+            // }
 
-                for (var qq of this.query_append(sol, arg1, arg2)) {
-                    yield qq
+            if (f_name == "member") {
+                for (var qqm of this.buildIn_member(stk,sol, arg1, arg2)) {
+                    yield qqm
                 }
                 return
             }
@@ -1192,7 +1243,7 @@ export namespace Interp {
 
         public *query_ar0(stk: QueryStack, sol: Solution.Solution, f_name: string ) {
 
-            console.log("zero")
+        
             let hasY: boolean = false
             for (var s of this.query_ar0_inner(stk, sol, PredicateKind.NOMINAL,  f_name )) {
                 yield s
@@ -1322,7 +1373,14 @@ export namespace Interp {
                     if (Solution.isValid(x1)) 
                     { 
                         has_yielded = true 
-                        yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_false(), {}) 
+                        if (x1.value instanceof GTems.LiteralBool)
+                        {
+                            if (x1.value.value  )  yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_false(), {}) 
+                            else  yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {}) 
+                        }
+                        else{
+                           yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_false(), {}) 
+                        }
                     }
                     else{
                         has_yielded = true 
@@ -1370,9 +1428,25 @@ export namespace Interp {
     
             let query_satisf: Boolean = false
 
+            if (f_name == "is_atom") {
+                 if (arg1 instanceof GTems.Atom){
+                    yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {}) 
+                 }
+                 else{
+                    yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_false(), {}) 
+                 }
+                 return 
+                }
 
-
-          
+                if (f_name == "is_list") {
+                    if (arg1 instanceof GTems.GList){
+                       yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {}) 
+                    }
+                    else{
+                       yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_false(), {}) 
+                    }
+                    return 
+                   }
 
             if (f_name == "write") {
                 console.log(arg1.toString())

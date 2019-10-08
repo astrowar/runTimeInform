@@ -16,7 +16,7 @@ do desc($x) => inbastek($x) ,[desc($x) ,in basket ]
 
 
 do flatten2([], [] )  as $FlatL = [] 
-do flatten2($x, $FlatL )  as atom($x), $FlatL = [$x] 
+do flatten2($x, $FlatL )  as not(list($x)), $FlatL = [$x] 
 do flatten2($LLs, $FlatL) =>    head($L,$LLs ) , flatten2($L, $nL), tail($Ls,$LLs),flatten2($Ls, $nLs) , append( $nL , $nLs, $FlatL)  
 
 
@@ -32,13 +32,15 @@ do link(b,c)
 do link(c,d)
 do link(b,e)
 
-do route($x,$y) as  link($x,$y), [$x,$y]
-unless route($x,$y) as  $r1 = route($x,$z), $r2 = route($z,$y), [ $r1,$r2]
+do ($x,route,$y) as  link($x,$y), [$x,$y]
+unless  ($x,route,$y) as  $r1 = route($x,$z), $r2 = route($z,$y), [ $r1,$r2]
 
 
 do qmain() as  u([1,2,2,3,4,4,6,7,7,7,7,7],$x),$x
 do qmain() as  $rr = route(a,d) , flatten2( $rr, $ro), u($ro , $ru), $ru
  
  
-do qmain() as append($x,[3,4],[1,2,3,4]),$x
-do main() as append($x,$y,[1,2,3,4]),[$x,$y]
+do main() as append($x,$y,[1,2,3,1,2,3]),$x != $y,$x
+do qmain() as nextto($x,$x,[1,2,3,4,3,2,2,5,6,2,3,1]), $x
+
+do qmain() as $r = (a,route,d), flatten2($r,$rs), u( $rs, $u), $u

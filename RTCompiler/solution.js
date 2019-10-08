@@ -156,7 +156,7 @@ var Solution;
             return bindVarVar(sol, x, y);
         }
         if (x.name == "_")
-            return new Solution(SolutionState.QTrue, y, {});
+            return sol;
         // bind da variavel e retorna nova solucao derivada 
         let xx = getBindTail(sol, x);
         let value_binded = getBindVarValue(sol, xx);
@@ -164,9 +164,18 @@ var Solution;
             let vname = xx.name;
             return sol.add(vname, y);
         }
+        if (value_binded instanceof atoms_1.GTems.GValue) {
+            if (atoms_1.GTems.isEqually(value_binded, y) == false) {
+                return new Solution(SolutionState.QFalse, atoms_1.GTems.atom_false(), {});
+            }
+            else {
+                return sol;
+            }
+        }
         if (atoms_1.GTems.isEqually(value_binded, y)) {
             return sol;
         }
+        throw new Error("undefined binding");
         return new Solution(SolutionState.QFalse, atoms_1.GTems.atom_false(), {});
     }
     function bindVarVar(sol, x, y) {

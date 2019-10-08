@@ -176,7 +176,7 @@ export namespace Solution{
             return bindVarVar(sol, x, y)
         }
 
-        if (x.name == "_") return new Solution(SolutionState.QTrue, y, {}) 
+        if (x.name == "_") return sol 
 
         // bind da variavel e retorna nova solucao derivada 
         let xx: GTems.Variable = getBindTail(sol, x)
@@ -186,10 +186,20 @@ export namespace Solution{
             let vname: string = xx.name
             return sol.add(vname, y)
         }
+        if(value_binded instanceof GTems.GValue )
+        {
+            if (GTems.isEqually(value_binded, y) ==false ) 
+            {   return new Solution(SolutionState.QFalse, GTems.atom_false(), {})
+            } 
+            else{
+                return sol
+            }
+        }
 
         if (GTems.isEqually(value_binded, y)) {
             return sol;
         }
+        throw new Error("undefined binding")
         return new Solution(SolutionState.QFalse, GTems.atom_false(), {})
     }
 
