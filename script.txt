@@ -1,5 +1,16 @@
  
+understand "shake $x" as  obj($x),shaking($x)
+understand "shake $x" as  person($x),write( "your shake it, now is angry")
+understand "turn down volume" ; "turn down music" ; "turn down the volume" ; "turn down the music" as lowering_volume() 
+understand "give $things to $someone" as   giving($things , $someone ) 
 
+
+do giving($things , boy) as write( "the boy get you item :-D") , write($things ) , [  ]
+do giving($things , girl) => write("the girl refuse ... is too sad :-(" ) , write($things ) ,[$things ]
+do giving(flower , girl) => write("the girl smeel the flower and smile :-)" ) , write(  ) ,[ ]
+
+do person(boy) 
+do person(girl) 
 do obj($x) as fruit($x);container($x)
 
 do desc(apple) as apple
@@ -36,11 +47,25 @@ do ($x,route,$y) as  link($x,$y), [$x,$y]
 unless  ($x,route,$y) as  $r1 = route($x,$z), $r2 = route($z,$y), [ $r1,$r2]
 
 
+
+do sentence(winter) as "time to eat fat"
+do sentence(summer) as "hot as a hell"
+do sentence($s) as  "is " + $s + "hot as a hell"
+
 do qmain() as  u([1,2,2,3,4,4,6,7,7,7,7,7],$x),$x
 do qmain() as  $rr = route(a,d) , flatten2( $rr, $ro), u($ro , $ru), $ru
  
  
-do main() as append($x,$y,[1,2,3,1,2,3]),$x != $y,$x
+do qmain() as append($x,$y,[1,2,3,1,2,3]),$x != $y,$x
 do qmain() as nextto($x,$x,[1,2,3,4,3,2,2,5,6,2,3,1]), $x
 
 do qmain() as $r = (a,route,d), flatten2($r,$rs), u( $rs, $u), $u
+
+ 
+ 
+
+
+do main() as parse("give ball to boy") 
+do main() as parse("give ball to girl") 
+do main() as parse("give flower to girl") 
+do main() as parse("shake girl") 

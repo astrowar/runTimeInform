@@ -8,6 +8,8 @@ import { isUndefined } from "util";
 import { UTerm } from "./mterms";
 import { GTems } from "./atoms";
 import { Interp } from "./interp";
+import { MParse } from "./parse";
+
 
 type SGroup = string[];
 
@@ -16,136 +18,11 @@ type ITerm = UTerm.ITerm
 var parseString = UTerm.parseString
 type MatchResult = UTerm.MatchResult
 var splitStringInput = UTerm.splitStringInput
-
-
-class Parser {
-
  
-}
- 
-
 
 namespace SyntaxParser {
  
-  class PSyntaxError{
-    constructor(public message: string ) { }
-  }
-
-    class Matchfunctior {
-        constructor(public mstr: string, public func: any) { }
-    }
-    function* genPattens_ii(iline: ITerm[], matc: string) {
-
-        {
-            for (var vqxxxx of parseString(iline, matc)) {
-                let vxxx: MatchResult = <MatchResult>vqxxxx
-                let q = {}
-                for (var sxxx of vxxx.entries()) {
-                    q[<string>sxxx[0]] = sxxx[1]
-                    //yield sxxx
-                }
-                yield q
-            }
-        }
-        return
-    }
-
-    class MFragmentKind {
-        constructor(public txt: string, public optional: boolean) {
-            if (this.optional) {
-                if (this.txt[0] == '(') {
-                    this.txt = this.txt.slice(1, this.txt.length - 1)
-                }
-            }
-        }
-    }
-
-    function find_end_term(m: string, j) {
-        let n = m.length
-        let p = 0;
-        for (let i = j; i < n; ++i) {
-            if ((m[i] == ' ') && (p == 0)) return i
-            if (m[i] == '(') p = p + 1
-            if (m[i] == ')') {
-                if (p == 1) return i + 1
-                p = p - 1
-            }
-
-        }
-        return n
-    }
-
-
-
-    function classifySegments(m: string): MFragmentKind[] {
-        let n = m.length
-        let terms: MFragmentKind[] = []
-        let i = 0
-        let pivot = 0
-        while (i < n) {
-            if (m[i] == '?') {
-                if (i - 1 > pivot) terms.push(new MFragmentKind(m.slice(pivot, i - 1), false))
-                let j = find_end_term(m, i + 1)
-                terms.push(new MFragmentKind(m.slice(i + 1, j), true))
-                pivot = j
-            }
-            i++
-        }
-        if (n > pivot) terms.push(new MFragmentKind(m.slice(pivot, n), false))
-        return terms
-    }
-
-
-    function* expand_rem(acc: string[], rem: MFragmentKind[]) {
-        if (rem.length == 0) {
-            yield acc.join(" ")
-        }
-        else {
-            let acc_nex: string[] = acc.concat([rem[0].txt])
-            for (var x of expand_rem(acc_nex, rem.slice(1))) { yield x }
-            if (rem[0].optional) {
-                for (var x of expand_rem(acc, rem.slice(1))) { yield x }
-            }
-        }
-    }
-
-    function* expand_i(m: string) {
-        //separa em fix segments e optional  
-        let n = m.length
-        let terms: MFragmentKind[] = classifySegments(m);
-        for (var mx of expand_rem([], terms)) {
-            yield mx
-        }
-        //yield m
-    }
-
-    function expand(matc: Matchfunctior[]): Matchfunctior[] {
-
-        let ret: Matchfunctior[] = []
-
-        for (var [i, m] of matc.entries()) {
-            for (var mii of expand_i(m.mstr)) {
-                ret.push(new Matchfunctior(mii, m.func))
-            }
-        }
-
-        return ret;
-    }
-
-    function* genPattens_i(iline: ITerm[], matc: Matchfunctior[]) {
-        let matc_ex: Matchfunctior[] = expand(matc)
-
-        for (var [i, m] of matc_ex.entries()) {
-            let anskitp = false
-            for (var rr of genPattens_ii(iline, m.mstr)) {
-                yield ([rr, m.func])
-                anskitp = true
-            }
-            //if (anskitp) break
-        }
-    }
-
-
+   
     function resolve_as(args: ITerm[]) {
         let codeexpr = Array.from(codebodyMatch(args))
         if (codeexpr.length > 0) return codeexpr[0]
@@ -196,19 +73,7 @@ namespace SyntaxParser {
             let rac = resolve_as(ac)
             arg_b.push(rac)
         }
-
-
-        // for (var i = 0; i < n; i++)
-        // {
-        //     if (args[i].isLiteral() ==false && args[i].gettext() == ",") {
-        //         if (acc.length > 0) arg_b.push(resolve_as(acc))
-        //         acc = []
-        //     }
-        //     else {
-        //         acc.push(args[i])
-        //     }
-        // }
-        // if (acc.length > 0) arg_b.push(resolve_as(acc))
+ 
         return arg_b
     }
 
@@ -330,17 +195,16 @@ namespace SyntaxParser {
 
     function* predDecl(args) {
         let basePathens = [
-            new Matchfunctior("$funct1 ( $args1 ) , $funct2 ( $args2 )", funct_and),
-            new Matchfunctior("$funct1 ( $args1 ) , $rem", funct_rem),
-            new Matchfunctior("$funct1 ( $args1 ) | $rem", funct_rem_or),
-            //new Matchfunctior("$funct ( $A , $B )", funct_2),
-            new Matchfunctior("$funct ( $A )", funct_1),
-            new Matchfunctior("$funct (  )", funct_0),
-            new Matchfunctior(" ( $A , $funct , $B )", funct_2),
-            new Matchfunctior("$funct", funct_z)
+            new MParse.Matchfunctior("$funct1 ( $args1 ) , $funct2 ( $args2 )", funct_and),
+            new MParse.Matchfunctior("$funct1 ( $args1 ) , $rem", funct_rem),
+            new MParse.Matchfunctior("$funct1 ( $args1 ) | $rem", funct_rem_or),
+            //new MParse.Matchfunctior("$funct ( $A , $B )", funct_2),
+            new MParse.Matchfunctior("$funct ( $A )", funct_1),
+            new MParse.Matchfunctior("$funct (  )", funct_0),
+            new MParse.Matchfunctior(" ( $A , $funct , $B )", funct_2),
+            new MParse.Matchfunctior("$funct", funct_z)
         ]
-        for (var vj of genPattens_i(args, basePathens)) { 
-
+        for (var vj of MParse.genPattens_i(args, basePathens)) { 
             let pool = []
             for (var vv of vj[1](vj[0])) {
                 if (isUndefined(vv) == false) {
@@ -350,16 +214,59 @@ namespace SyntaxParser {
                     pool = [] //um termo nao deu certo .. invalida toda sequencia
                     break
                 }
-            }
-            
-
+            } 
             //alimanta saida dos termos
             for (var [i, vv] of pool.entries()) yield vv
-            if (pool.length > 0) break
-
-
+            if (pool.length > 0) break 
         }
     }
+
+
+    function* pmatch_or(args_dict) {
+        let pname1: ITerm[] = args_dict["$term"]
+        if (pname1.length != 1) return undefined       
+        let p1 = pname1[0] 
+        if (isUndefined(p1)) return undefined
+        for (var pnext of understandDecl(args_dict["$rem"])) {
+            if (isUndefined(pnext)) continue
+            yield new GTems.Functor("or", p1.gettext(), pnext)
+        }
+        return
+    }
+
+    function* pmatch_item(args_dict) {
+        let pname1: ITerm[] = args_dict["$term"]
+        if (pname1.length != 1) return undefined       
+        let p1 = pname1[0] 
+        if (isUndefined(p1)) return undefined
+        yield new GTems.LiteralStr(p1.gettext())
+        return
+    }
+
+
+    function* understandDecl(args) {
+        let basePathens = [
+            new MParse.Matchfunctior("$term ; $rem", pmatch_or),
+            new MParse.Matchfunctior("$term ", pmatch_item),
+        ]
+        for (var vj of MParse.genPattens_i(args, basePathens)) { 
+            let pool = []
+            for (var vv of vj[1](vj[0])) {
+                if (isUndefined(vv) == false) {
+                    pool.push(vv)
+                }
+                else {
+                    pool = []
+                    break
+                }
+            }             
+            for (var [i, vv] of pool.entries()) yield vv
+            if (pool.length > 0) break 
+        }
+    }
+
+
+
 
     // Serarate Terms by
 
@@ -587,59 +494,61 @@ namespace SyntaxParser {
 
         }
 
-        if (x.length == 1 )       yield x[0].getGeneralTerm()
-
-        let all_str = []
-        for( var [i,xx] of x.entries())
-        {
-            all_str.push(xx.gettext() )
+        if (x.length == 1 ) 
+         {   yield x[0].getGeneralTerm() } 
+        else {  
+            let all_str = []
+            for( var [i,xx] of x.entries())
+            {
+                all_str.push(xx.gettext() )
+            }
+            yield new GTems.Atom(all_str.join(" "))  
         }
-        yield new GTems.Atom(all_str.join(" "))  
     }
 
 
     function* codebodyMatch(args) {
         let basePathens = [
-            new Matchfunctior("{ $X }", expr_inner),
+            new MParse.Matchfunctior("{ $X }", expr_inner),
 
-            new Matchfunctior("true", (x) => { return expr_atorm_reserv("true") }),
-            new Matchfunctior("false", (x) => { return expr_atorm_reserv("false") }),
-            new Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }),
-            new Matchfunctior("done", (x) => { return expr_atorm_reserv("done") }),
-            new Matchfunctior("!", (x) => { return expr_atorm_reserv("cut") }),
+            new MParse.Matchfunctior("true", (x) => { return expr_atorm_reserv("true") }),
+            new MParse.Matchfunctior("false", (x) => { return expr_atorm_reserv("false") }),
+            new MParse.Matchfunctior("fail", (x) => { return expr_atorm_reserv("fail") }),
+            new MParse.Matchfunctior("done", (x) => { return expr_atorm_reserv("done") }),
+            new MParse.Matchfunctior("!", (x) => { return expr_atorm_reserv("cut") }),
 
-            new Matchfunctior("$X , $Y", expr_and),
-            new Matchfunctior("$X ; $Y", expr_or),
-            new Matchfunctior("$X = = $Y", expr_EQUAL),
-            new Matchfunctior("$X ! = $Y", expr_NEQUAL),
-            new Matchfunctior("$X = $Y", expr_UNIFY),
+            new MParse.Matchfunctior("$X , $Y", expr_and),
+            new MParse.Matchfunctior("$X ; $Y", expr_or),
+            new MParse.Matchfunctior("$X = = $Y", expr_EQUAL),
+            new MParse.Matchfunctior("$X ! = $Y", expr_NEQUAL),
+            new MParse.Matchfunctior("$X = $Y", expr_UNIFY),
 
-            new Matchfunctior("$X + $Y", expr_plus),
-            new Matchfunctior("$X - $Y", expr_minus),
+            new MParse.Matchfunctior("$X + $Y", expr_plus),
+            new MParse.Matchfunctior("$X - $Y", expr_minus),
 
-            new Matchfunctior("$X > $Y", expr_GT),
-            new Matchfunctior("$X < $Y", expr_LT),
+            new MParse.Matchfunctior("$X > $Y", expr_GT),
+            new MParse.Matchfunctior("$X < $Y", expr_LT),
 
-            new Matchfunctior("$X > = $Y", expr_GTE),
-            new Matchfunctior("$X < = $Y", expr_LTE),
+            new MParse.Matchfunctior("$X > = $Y", expr_GTE),
+            new MParse.Matchfunctior("$X < = $Y", expr_LTE),
 
 
-            new Matchfunctior("$X * $Y", expr_MUL),
-            new Matchfunctior("$X / $Y", expr_DIV),
-            new Matchfunctior("$X % $Y", expr_MOD),
+            new MParse.Matchfunctior("$X * $Y", expr_MUL),
+            new MParse.Matchfunctior("$X / $Y", expr_DIV),
+            new MParse.Matchfunctior("$X % $Y", expr_MOD),
             
             
-            new Matchfunctior("not ( $X  )", expr_not),
-            new Matchfunctior("$funct (   )", expr_funct_0),
-            new Matchfunctior("$funct ( $args )", expr_funct),
-            new Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),
-            new Matchfunctior("[ $X ]", expr_lst),
-            new Matchfunctior("[ ]", expr_lst),
+            new MParse.Matchfunctior("not ( $X  )", expr_not),
+            new MParse.Matchfunctior("$funct (   )", expr_funct_0),
+            new MParse.Matchfunctior("$funct ( $args )", expr_funct),
+            new MParse.Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),
+            new MParse.Matchfunctior("[ $X ]", expr_lst),
+            new MParse.Matchfunctior("[ ]", expr_lst),
 
 
-            new Matchfunctior("$X ", expr_literal)
+            new MParse.Matchfunctior("$X ", expr_literal)
         ]
-        for (var vj of genPattens_i(args, basePathens)) {
+        for (var vj of MParse.genPattens_i(args, basePathens)) {
             let pool = []
             for (var vv of vj[1](vj[0])) {
                 if (isUndefined(vv) == false) {
@@ -704,6 +613,25 @@ namespace SyntaxParser {
         }
         return false
     }
+
+
+   
+    function let_xy(args_dict, reFunc): boolean {
+        return syntax_xy(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["let"])) })
+    }
+  
+    function understand_xy(args_dict, reFunc): boolean {
+        let x = args_dict["$X"]
+        let y = args_dict["$Y"]
+        for (var px of understandDecl(x)) {
+            for (var cy of codeBody(y)) { 
+                reFunc(px, cy, undefined, ["understand"])
+                return true
+            }
+        }
+        return false
+    }
+
 
     function unless_xyz(args_dict, reFunc): boolean {
         return syntax_xyz(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["unless"])) })
@@ -821,37 +749,40 @@ namespace SyntaxParser {
 
         let basePathens = [
 
-            new Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
-            new Matchfunctior("do $X = > $Y ", syntax_xy_direct),
+            new MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
+            new MParse.Matchfunctior("do $X = > $Y ", syntax_xy_direct),
           
 
 
-            new Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
-            new Matchfunctior("do -  $X as $Y ", syntax_xy_low),
-            new Matchfunctior("do -  $X  ", syntax_x_low),
+            new MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
+            new MParse.Matchfunctior("do -  $X as $Y ", syntax_xy_low),
+            new MParse.Matchfunctior("do -  $X  ", syntax_x_low),
 
-            new Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
-            new Matchfunctior("do +  $X as $Y ", syntax_xy_high),
-            new Matchfunctior("do +  $X  ", syntax_x_high),
+            new MParse.Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
+            new MParse.Matchfunctior("do +  $X as $Y ", syntax_xy_high),
+            new MParse.Matchfunctior("do +  $X  ", syntax_x_high),
 
-            new Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
-            new Matchfunctior("do  $X as $Y ", syntax_xy),
-            new Matchfunctior("do  $X  ", syntax_x),
+            new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+            new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
+            new MParse.Matchfunctior("do  $X  ", syntax_x),
 
-            new Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
-            new Matchfunctior("do  $X as $Y ", syntax_xy),
-            new Matchfunctior("do  $X  ", syntax_x),
+            new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+            new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
+            new MParse.Matchfunctior("do  $X  ", syntax_x),
 
-            new Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
-            new Matchfunctior("unless  $X as $Y ", unless_xy),
-            new Matchfunctior("unless  $X  ", unless_x), 
+            new MParse.Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
+            new MParse.Matchfunctior("unless  $X as $Y ", unless_xy),
+            new MParse.Matchfunctior("unless  $X  ", unless_x), 
 
-            new Matchfunctior("do  $X  ?.", syntax_x),
+            new MParse.Matchfunctior("do  $X  ?.", syntax_x),
 
 
-            new Matchfunctior("before  $X as  $Y if $Z", before_xyz),
-            new Matchfunctior("before  $X as  $Y ", before_xy),
-            new Matchfunctior("before  $X ", before_x)
+            new MParse.Matchfunctior("let  $X as $Y ", let_xy), 
+            new MParse.Matchfunctior("understand   $X as $Y ", understand_xy), 
+
+            new MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
+            new MParse.Matchfunctior("before  $X as  $Y ", before_xy),
+            new MParse.Matchfunctior("before  $X ", before_x)
 
  
         ]
@@ -862,7 +793,7 @@ namespace SyntaxParser {
             let sline = splitStringInput(iline.line)
 
             let has_code: boolean = false
-            for (var vj of genPattens_i(sline, basePathens)) {
+            for (var vj of MParse.genPattens_i(sline, basePathens)) {
                 has_code = vj[1](vj[0], resolutionFunc)
                 if (has_code) break
             }
