@@ -471,6 +471,10 @@ namespace SyntaxParser {
 
         let x: ITerm[] = args_dict["$X"]
         if (x.length == 1) {
+
+            yield (x[0].getGeneralTerm() )
+            return 
+
             let n = Number(x[0].txt)
             if (isNaN(n) == false) {
                 yield new GTems.LiteralNumber(n)

@@ -446,6 +446,8 @@ var SyntaxParser;
     function* expr_literal(args_dict) {
         let x = args_dict["$X"];
         if (x.length == 1) {
+            yield (x[0].getGeneralTerm());
+            return;
             let n = Number(x[0].txt);
             if (isNaN(n) == false) {
                 yield new atoms_1.GTems.LiteralNumber(n);

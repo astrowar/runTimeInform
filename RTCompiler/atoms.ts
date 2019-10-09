@@ -104,7 +104,8 @@ export namespace GTems {
             super()
             this.value = lit_str;
         }
-        toString(): string { return '"' + this.value + '"' }
+        //toString(): string { return '"' + this.value + '"' }
+        toString(): string { return  this.value  }
         clone( ) { return new LiteralStr(this.value) }
     }
 

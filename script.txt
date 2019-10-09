@@ -1,16 +1,33 @@
  
-understand "shake $x" as  obj($x),shaking($x)
-understand "shake $x" as  person($x),write( "your shake it, now is angry")
+
+
+understand "shake $xs" as  atom_string($x,$xs) , obj($x),shaking($x)
+understand "shake $xs" as atom_string($x,$xs) , person($x), det($d,$x),  write( "your shake it, now $d $xs is angry\n")
 understand "turn down volume" ; "turn down music" ; "turn down the volume" ; "turn down the music" as lowering_volume() 
-understand "give $things to $someone" as   giving($things , $someone ) 
+understand "give $things to $someone" as atom_string($t,$things ) ,atom_string($s,$someone ) ,  giving($t  , $s   ) 
 
 
-do giving($things , boy) as write( "the boy get you item :-D") , write($things ) , [  ]
-do giving($things , girl) => write("the girl refuse ... is too sad :-(" ) , write($things ) ,[$things ]
-do giving(flower , girl) => write("the girl smeel the flower and smile :-)" ) , write(  ) ,[ ]
+do giving($thing , boy) as    det($d,$thing),write("[boy] get $d $thing :-D \n")  , [  ]
+do giving($thing , girl) =>   det($d,$thing),write("[girl] refuse $d $thing... is too sad :-(\n" ) ,[$thing ]
+do giving(flower , girl) =>   det($d,flower),write("[girl] smeel the $d flower and smile :-)\n" ) , [ ]
+
+
+
+unless repr($x) as expand("$x")
+do repr($x) => det($d,$x), expand("$d $x")
+do repr(girl) => det($d,$x), expand("$d lovelly girl")
 
 do person(boy) 
 do person(girl) 
+
+unless det(the, $ )
+do det(a, girl )
+do det(o, boy )
+
+do det(some, flower )
+do det(a, ball  )
+
+
 do obj($x) as fruit($x);container($x)
 
 do desc(apple) as apple

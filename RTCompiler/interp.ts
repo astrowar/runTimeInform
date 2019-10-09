@@ -8,6 +8,27 @@ import { MParse } from "./parse";
 
 
 export namespace Interp {
+    function findEndAtom(x:string, i:number){
+        let n = x.length
+        while( i< n){            
+            if (x[i] ==" " || (";.,()[]|&\n\r".indexOf(x[i])> -1)  ) { return i}
+            i = i+1
+           }
+           return i;
+        }
+
+        function  findEndBraket(x:string, i:number){
+            let n = x.length
+            let lv = 0
+            while( i< n){            
+                if (x[i] =="["  ) {  lv = lv +1  }
+                if (x[i] =="]"  ) {  lv = lv -1  }
+                if (lv == 0 ) return i
+                i = i+1
+               }
+               return i;
+            }
+
 
 
     //normal ... sem flag de selecao
@@ -223,6 +244,8 @@ export namespace Interp {
         predicades: PredicateEntry[] = []
         understands : UnderstandEntry[] =[]
         predicades_id: number = 1
+        writebuffer: string = "";
+        warringbuffer : string[] = [];
 
        
         public addPredicateFunc(p: GTems.Functor | GTems.LiteralStr , code: any, condition: any, p_options: [any]): boolean {
@@ -302,6 +325,52 @@ export namespace Interp {
         }
 
 
+       
+    
+
+
+
+       expandString(stk: QueryStack,sol: Solution.Solution, x:string  ): string {
+           let buffer = ""
+           let i = -1;
+           let n = x.length      
+           while( i< n-1){
+                i = i+1              
+                if ( x[i] =="$") 
+                { 
+                     let j = findEndAtom(x,i)
+                     let varname = x.substr(i+1,j-i-1)
+                     let vx= sol.var_values[varname ]                    
+                     buffer +=  (isUndefined(vx) ? varname : vx.toString());
+                     i= j-1 
+                     continue 
+                }      
+                
+                if ( x[i] =="[") 
+                { 
+                     let j = findEndBraket(x,i)
+                     let inner = x.substr(i+1,j-i-1)
+                     i= j 
+
+                     for(var qrep of this.query_ar1( stk,sol, "repr", new GTems.Atom(inner.trim())))                     
+                     {
+                         if (qrep instanceof Solution.Solution){
+                             if (Solution.isValid(qrep)){
+                                  // let next_exp = this.expandString( stk, qrep,qrep.value.toString()  )
+                                  // buffer +=  next_exp
+                                  buffer +=  qrep.value.toString()
+                                }
+                         }
+                     }
+                     continue
+                     
+                }   
+                
+                
+                buffer += x[i]                 
+           } 
+           return buffer
+       }
 
 
         public *query_append(sol: Solution.Solution, q1: GTems.GBase, q2: GTems.GBase) {
@@ -377,7 +446,8 @@ export namespace Interp {
 
         public all_query(q: GTems.GBase) {
 
-            // console.dir(q, { depth: null })
+            this.warringbuffer =[]
+            this.writebuffer = "" 
             let sol = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
 
             let stk: QueryStack = new QueryStack()
@@ -389,18 +459,21 @@ export namespace Interp {
                     r.push(qz)
                 }
             }
-            // console.log("solutions:")
-            // console.dir( r, { depth: null })
+  
+            for(var [i,wm] of this.warringbuffer.entries() ) 
+            {
+                //process.stderr.write("Warring:" + wm) 
+                console.log("Warring:" + wm)  
+            }
+
+            let mwriteP = this.writebuffer.replace(new RegExp("\\\\n", 'g'), "\r\n");
+            //process.stdout.write(mwriteP)   
+            console.log(mwriteP)
+
             return r
         }
 
-        public *query(stk: QueryStack, sol: Solution.Solution, q: GTems.GBase) {
-
-            // console.log("...")
-            // console.dir(q, { depth: null })
-
-
-
+        public *query(stk: QueryStack, sol: Solution.Solution, q: GTems.GBase) { 
             if (q instanceof GTems.Functor) {
                 if (q.name == "and") {
                     for (var qq of this.query_and(stk, sol, q.args[0], q.args[1])) yield qq
@@ -500,8 +573,8 @@ export namespace Interp {
             }
 
 
-            console.log("Unassigned term :", q)
-            throw new Error('Unassigned Term Evaluator');
+            
+            throw new Error('Unassigned Term Evaluator '+ q.toString()  );
 
 
         }
@@ -587,7 +660,7 @@ export namespace Interp {
 
                         {
                             if (x.length == 1 ) 
-                                {   val= x[0].getGeneralTerm() 
+                                {   val= new GTems.LiteralStr(x[0].gettext())
                                 }
                             else {
                                 let all_str = []
@@ -595,7 +668,7 @@ export namespace Interp {
                                 {
                                     all_str.push(xx.gettext() )
                                 }
-                                val= new GTems.Atom(all_str.join(" "))  
+                                val= new GTems.LiteralStr(all_str.join(" "))  
                             }
                         }
                         
@@ -745,7 +818,7 @@ export namespace Interp {
             let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
             // if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
             if (this.isVar(arg2)) {
-                console.log("Warring: head of a unbound variable is not possible")
+                this.warring("head of a unbound variable is not possible")
                 // yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
             }
 
@@ -764,7 +837,7 @@ export namespace Interp {
             let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
             // if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
             if (this.isVar(arg2)) {
-                console.log("Warring: tail of a unbound variable is not possible")
+                this.warring("tail of a unbound variable is not possible")
                 //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
             }
             if (arg2 instanceof GTems.GList) {
@@ -777,6 +850,40 @@ export namespace Interp {
             }
             //return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
         }
+
+
+        *buildIn_atom_string(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase ) {
+            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                    
+       
+                if ((arg1 instanceof GTems.Atom  ) && (arg2 instanceof GTems.Variable  ))
+                {                    
+                    let s1 = new GTems.LiteralStr( arg1.name)
+                    yield Solution.bind(sol_next , arg2 , s1  )                    
+                    return 
+                }
+
+                if ((arg1 instanceof GTems.Variable  ) && (arg2 instanceof GTems.LiteralStr  ))
+                {                    
+                    let s2 = new GTems.Atom( arg2.value )
+                    yield Solution.bind(sol_next , arg1 , s2  )                    
+                    return 
+                 }
+
+                 if ((arg1 instanceof GTems.Atom  ) && (arg2 instanceof GTems.LiteralStr  ))
+                 {
+                       if ( arg1.name == arg2.value ) {
+                           yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {});
+                       }
+                       else{
+                        yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
+                       }
+                       return 
+                 }
+
+                throw new Error("invalid argument for atom_string")  
+            }
+
 
         *buildIn_member(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase ) {
             let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
@@ -947,11 +1054,11 @@ export namespace Interp {
         *buildIn_maplist(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
             let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
             if (this.isVar(arg1)) {
-                console.log("Warring: maplist of a unbound predicate is not possible")
+                this.warring("maplist of a unbound predicate is not possible")
                 yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
             }
             if (this.isVar(arg2)) {
-                console.log("Warring: maplist of a unbound input list is not possible")
+                this.warring(" maplist of a unbound input list is not possible")
                 yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
             }
             if (arg1 instanceof GTems.Atom) {
@@ -1139,7 +1246,7 @@ export namespace Interp {
             }
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
-                    console.log("Predicate " + f_name + "/3  not found ")
+                    this.warring("Predicate " + f_name + "/3  not found ")
                 }
         }
      
@@ -1227,6 +1334,17 @@ export namespace Interp {
                 }
                 return
             }
+
+      
+
+            if (f_name == "atom_string") {
+                for (var qqm of this.buildIn_atom_string(stk,sol, arg1, arg2)) {
+                    yield qqm
+                }
+                return
+            }
+
+
             if (f_name == "and") {
                 for (var qq of this.query_and(stk, sol, arg1, arg2)) {
                     yield qq
@@ -1391,7 +1509,7 @@ export namespace Interp {
             }
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
-                    console.log("Predicate " + f_name + "/2  not found ")
+                    this.warring("Predicate " + f_name + "/2  not found ")
                 }
         }
 
@@ -1524,7 +1642,16 @@ export namespace Interp {
                     return 
                    }
 
-
+                   if (f_name == "expand") {
+                    if (arg1 instanceof GTems.LiteralStr){
+                        let rexp = this.expandString(stk,sol, arg1.value);
+                       yield new Solution.Solution(Solution.SolutionState.QTrue,new GTems.LiteralStr(rexp), {}) 
+                    }
+                    else{
+                       yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_false(), {}) 
+                    }
+                    return 
+                   }
       
                 
 
@@ -1538,7 +1665,9 @@ export namespace Interp {
                     return                 }
 
             if (f_name == "write") {
-                console.log(arg1.toString())
+                if (arg1 instanceof GTems.LiteralStr){this.write(stk,sol,arg1.value); }
+                else this.write(stk,sol,arg1.toString());
+                
                 yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {}) 
                 return 
             }
@@ -1561,10 +1690,10 @@ export namespace Interp {
                     hasFound = true
 
                     if (stk.contains(p.unique_name, arg1)) {
-                        console.log("Block ")
+                         
                         continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
                     }
-                    // console.log("pass " ,p.unique_name ,arg1 )  
+                    
 
                     let stk_next: QueryStack = stk.pushCall(p.unique_name, arg1)
 
@@ -1660,11 +1789,18 @@ export namespace Interp {
 
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
-                    console.log("Predicate " + f_name + "/1  not found ")
+                    this.warring("Predicate " + f_name + "/1  not found ")
                 }
 
         }
-     
+        write( stk: QueryStack,sol: Solution.Solution,arg0: string) {
+            let msg = this.expandString(stk,sol, arg0)
+
+             this.writebuffer = this.writebuffer + msg
+        }
+        warring(arg0: string) {
+            this.warringbuffer.push(arg0)
+       }
 
 
         public *query_ar0(stk: QueryStack, sol: Solution.Solution, f_name: string ) {
@@ -1693,7 +1829,7 @@ export namespace Interp {
 
 
                             if (f_name == "write") {
-                                console.log(".")
+                               this.write(stk,sol,".")
                                 yield   new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                                 return
                             }
@@ -1711,7 +1847,7 @@ export namespace Interp {
                                     if (isArray(pa0)) pa0 = pa0[0]                
                                     hasFound = true                
                                     if (stk.contains(p.unique_name )) {
-                                        console.log("Block ")
+                                   
                                         continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
                                     }
                                     let stk_next: QueryStack = stk.pushCall(p.unique_name ) 
@@ -1751,7 +1887,7 @@ export namespace Interp {
                 
                             if (attribSelect != PredicateKind.UNLESS)
                                 if (hasFound == false) {
-                                    console.log("Predicate " + f_name + "/1  not found ")
+                                    this.warring("Predicate " + f_name + "/1  not found ")
                                 }
                 
                             }

@@ -86,7 +86,8 @@ var GTems;
             super();
             this.value = lit_str;
         }
-        toString() { return '"' + this.value + '"'; }
+        //toString(): string { return '"' + this.value + '"' }
+        toString() { return this.value; }
         clone() { return new LiteralStr(this.value); }
     }
     GTems.LiteralStr = LiteralStr;
