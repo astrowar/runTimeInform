@@ -59,11 +59,24 @@ var UTerm;
         }
     }
     UTerm.MatchResult = MatchResult;
+    function isMatchStr(x, m) {
+        if (x === m)
+            return new MatchResult(true);
+        if (m.indexOf("/") > -1) {
+            var mme = m.split("/");
+            for (var [i, e] of mme.entries()) {
+                let re = isMatchStr(x, e);
+                if (re.result)
+                    return new MatchResult(true);
+            }
+        }
+        return new MatchResult(false);
+    }
     function isMatch(x, m) {
         //return new MatchResult(true)
         if (m instanceof MatchStringLiteral) {
             if (x.length == 1) {
-                return new MatchResult(x[0].gettext() === m.str);
+                return isMatchStr(x[0].gettext().trim(), m.str.trim());
             }
         }
         if (m instanceof MatchVar) {
@@ -254,8 +267,6 @@ var UTerm;
     }
     UTerm.splitStringInput = splitStringInput;
     function* parseString(xs, mstr) {
-        //let xs = x.split(" ");
-        //xs = xs.filter(Boolean);
         let m = mstr.split(" ");
         m = m.filter(Boolean);
         if (xs.length < m.length)

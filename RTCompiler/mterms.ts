@@ -73,6 +73,22 @@ export namespace UTerm {
         }
     }
 
+ 
+
+    function isMatchStr(x: string, m: string): MatchResult {
+        if (x  === m ) return new MatchResult(true)
+        if (m.indexOf("/") >-1 ){
+            var mme = m.split("/");
+            for(var [i,e] of mme.entries()) {
+                let re =  isMatchStr( x,e) 
+                if (re.result)   return new MatchResult(true)
+            }
+        }
+        return new MatchResult(false)
+
+    }
+
+
     function isMatch(x: ITerm[], m: MatchTerm): MatchResult {
 
         //return new MatchResult(true)
@@ -81,7 +97,7 @@ export namespace UTerm {
 
         if (m instanceof MatchStringLiteral) {
             if (x.length == 1) {
-                return new MatchResult(x[0].gettext() === m.str)
+               return isMatchStr( x[0].gettext().trim() , m.str.trim())
             }
         }
 
@@ -286,8 +302,7 @@ export namespace UTerm {
 
 
     export function* parseString(xs: ITerm[], mstr: string) {
-        //let xs = x.split(" ");
-        //xs = xs.filter(Boolean);
+ 
         let m = mstr.split(" ")
         m = m.filter(Boolean);
         if (xs.length < m.length) return;

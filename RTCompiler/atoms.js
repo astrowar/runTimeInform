@@ -42,6 +42,8 @@ var GTems;
             if (isValidAtomName(atm_name) == false) {
                 throw new Error('name invalid for atom ' + atm_name);
             }
+            if (atm_name[0] == "$")
+                throw new Error('name invalid for atom ' + atm_name);
             this.name = atm_name;
         }
         toString() { return this.name; }

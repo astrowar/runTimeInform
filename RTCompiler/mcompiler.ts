@@ -128,6 +128,14 @@ namespace SyntaxParser {
                 yield new GTems.Functor(pname[0].txt)
     }
 
+    
+
+    function* var_z(args_dict) {
+        let pname: ITerm[] = args_dict["$variable"]     
+        if ( pname.length == 1 )    
+            if (pname[0].txt[0] === "$")
+                yield new GTems.Variable(pname[0].txt.substr(1))
+    }
 
     function* funct_1(args_dict) {
         yield funct_resolve(args_dict["$funct"], args_dict["$A"])
@@ -221,6 +229,49 @@ namespace SyntaxParser {
         }
     }
 
+    function* predDecl0(args) {
+        let basePathens = [     
+            new MParse.Matchfunctior("$funct", funct_z)
+        ]
+        for (var vj of MParse.genPattens_i(args, basePathens)) { 
+            let pool = []
+            for (var vv of vj[1](vj[0])) {
+                if (isUndefined(vv) == false) {
+                    pool.push(vv)
+                }
+                else {
+                    pool = [] //um termo nao deu certo .. invalida toda sequencia
+                    break
+                }
+            } 
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries()) yield vv
+            if (pool.length > 0) break 
+        }
+    }
+
+  
+
+    function* varDecl0(args) {
+        let basePathens = [     
+            new MParse.Matchfunctior("$variable", var_z)
+        ]
+        for (var vj of MParse.genPattens_i(args, basePathens)) { 
+            let pool = []
+            for (var vv of vj[1](vj[0])) {
+                if (isUndefined(vv) == false) {
+                    pool.push(vv)
+                }
+                else {
+                    pool = [] //um termo nao deu certo .. invalida toda sequencia
+                    break
+                }
+            } 
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries()) yield vv
+            if (pool.length > 0) break 
+        }
+    }
 
     function* pmatch_or(args_dict) {
         let pname1: ITerm[] = args_dict["$term"]
@@ -394,6 +445,10 @@ namespace SyntaxParser {
     function* expr_EQUAL(args_dict) {
         for (var x of expr_xy_operator("equal", args_dict)) yield x
     }
+    function* expr_ASIGN(args_dict) {
+        for (var x of expr_xy_operator("assign", args_dict)) yield x
+    }
+
     function* expr_NEQUAL(args_dict) {
         for (var x of expr_xy_operator("not_equal", args_dict)) yield x
     }
@@ -524,6 +579,7 @@ namespace SyntaxParser {
             new MParse.Matchfunctior("$X , $Y", expr_and),
             new MParse.Matchfunctior("$X ; $Y", expr_or),
             new MParse.Matchfunctior("$X = = $Y", expr_EQUAL),
+            new MParse.Matchfunctior("$X : = $Y", expr_ASIGN),
             new MParse.Matchfunctior("$X ! = $Y", expr_NEQUAL),
             new MParse.Matchfunctior("$X = $Y", expr_UNIFY),
 
@@ -600,7 +656,6 @@ namespace SyntaxParser {
         let y = args_dict["$Y"]
         for (var px of predDecl(x)) {
             for (var cy of codeBody(y)) {
-
                 // console.dir([px, cy, []], { depth: null })
                 reFunc(px, cy, undefined, [])
                 return true
@@ -618,7 +673,30 @@ namespace SyntaxParser {
         return false
     }
 
+    function const_xy(args_dict, reFunc): boolean {
+        let x = args_dict["$X"]
+        let y = args_dict["$Y"]
+        for (var px of predDecl0(x)) {
+            for (var cy of codeBody(y)) {              
+                reFunc(px, cy, undefined, ["const"])
+                return true
+            }
+        }
+        return false
+    }
 
+    function var_xy(args_dict, reFunc): boolean {
+        let x = args_dict["$X"]
+        let y = args_dict["$Y"]
+        for (var px of varDecl0(x)) {
+            for (var cy of codeBody(y)) {              
+                reFunc(px, cy, undefined, ["var"])
+                return true
+            }
+        }
+        return false
+    }
+ 
    
     function let_xy(args_dict, reFunc): boolean {
         return syntax_xy(args_dict, (p, body, cond, poptions) => { p.name =   p.name; reFunc(p, body, cond, poptions.concat(["let"])) })
@@ -700,6 +778,8 @@ namespace SyntaxParser {
         return syntax_xyz(args_dict, reFunc)
     }
 
+ 
+    
 
     class LineCode {
         constructor(public line: string , public addr: number, public linenumber: number   ) { }
@@ -786,7 +866,11 @@ namespace SyntaxParser {
 
             new MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
             new MParse.Matchfunctior("before  $X as  $Y ", before_xy),
-            new MParse.Matchfunctior("before  $X ", before_x)
+            new MParse.Matchfunctior("before  $X ", before_x),
+
+
+            new MParse.Matchfunctior("const  $X as  $Y ", const_xy),
+            new MParse.Matchfunctior("var   $X as  $Y ", var_xy)
 
  
         ]
@@ -935,6 +1019,9 @@ if (fs.existsSync(script_filename) ) {
 else{
     throw "Script " + script_filename+" File Not found"
 }
+ctx.init()
+
+
 
 SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { console.dir(ctx.all_query(x).map((s ) => { return s.toString() }), { depth: null }) })
 

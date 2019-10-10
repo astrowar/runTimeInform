@@ -111,6 +111,12 @@ var SyntaxParser;
         if (pname.length == 1)
             yield new atoms_1.GTems.Functor(pname[0].txt);
     }
+    function* var_z(args_dict) {
+        let pname = args_dict["$variable"];
+        if (pname.length == 1)
+            if (pname[0].txt[0] === "$")
+                yield new atoms_1.GTems.Variable(pname[0].txt.substr(1));
+    }
     function* funct_1(args_dict) {
         yield funct_resolve(args_dict["$funct"], args_dict["$A"]);
     }
@@ -185,6 +191,50 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("$funct (  )", funct_0),
             new parse_1.MParse.Matchfunctior(" ( $A , $funct , $B )", funct_2),
             new parse_1.MParse.Matchfunctior("$funct", funct_z)
+        ];
+        for (var vj of parse_1.MParse.genPattens_i(args, basePathens)) {
+            let pool = [];
+            for (var vv of vj[1](vj[0])) {
+                if (util_1.isUndefined(vv) == false) {
+                    pool.push(vv);
+                }
+                else {
+                    pool = []; //um termo nao deu certo .. invalida toda sequencia
+                    break;
+                }
+            }
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries())
+                yield vv;
+            if (pool.length > 0)
+                break;
+        }
+    }
+    function* predDecl0(args) {
+        let basePathens = [
+            new parse_1.MParse.Matchfunctior("$funct", funct_z)
+        ];
+        for (var vj of parse_1.MParse.genPattens_i(args, basePathens)) {
+            let pool = [];
+            for (var vv of vj[1](vj[0])) {
+                if (util_1.isUndefined(vv) == false) {
+                    pool.push(vv);
+                }
+                else {
+                    pool = []; //um termo nao deu certo .. invalida toda sequencia
+                    break;
+                }
+            }
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries())
+                yield vv;
+            if (pool.length > 0)
+                break;
+        }
+    }
+    function* varDecl0(args) {
+        let basePathens = [
+            new parse_1.MParse.Matchfunctior("$variable", var_z)
         ];
         for (var vj of parse_1.MParse.genPattens_i(args, basePathens)) {
             let pool = [];
@@ -382,6 +432,10 @@ var SyntaxParser;
         for (var x of expr_xy_operator("equal", args_dict))
             yield x;
     }
+    function* expr_ASIGN(args_dict) {
+        for (var x of expr_xy_operator("assign", args_dict))
+            yield x;
+    }
     function* expr_NEQUAL(args_dict) {
         for (var x of expr_xy_operator("not_equal", args_dict))
             yield x;
@@ -490,6 +544,7 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("$X , $Y", expr_and),
             new parse_1.MParse.Matchfunctior("$X ; $Y", expr_or),
             new parse_1.MParse.Matchfunctior("$X = = $Y", expr_EQUAL),
+            new parse_1.MParse.Matchfunctior("$X : = $Y", expr_ASIGN),
             new parse_1.MParse.Matchfunctior("$X ! = $Y", expr_NEQUAL),
             new parse_1.MParse.Matchfunctior("$X = $Y", expr_UNIFY),
             new parse_1.MParse.Matchfunctior("$X + $Y", expr_plus),
@@ -565,6 +620,28 @@ var SyntaxParser;
             //console.dir([px, [], []], { depth: null })
             reFunc(px, new atoms_1.GTems.LiteralBool(true), undefined, []);
             return true;
+        }
+        return false;
+    }
+    function const_xy(args_dict, reFunc) {
+        let x = args_dict["$X"];
+        let y = args_dict["$Y"];
+        for (var px of predDecl0(x)) {
+            for (var cy of codeBody(y)) {
+                reFunc(px, cy, undefined, ["const"]);
+                return true;
+            }
+        }
+        return false;
+    }
+    function var_xy(args_dict, reFunc) {
+        let x = args_dict["$X"];
+        let y = args_dict["$Y"];
+        for (var px of varDecl0(x)) {
+            for (var cy of codeBody(y)) {
+                reFunc(px, cy, undefined, ["var"]);
+                return true;
+            }
         }
         return false;
     }
@@ -701,7 +778,9 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("understand   $X as $Y ", understand_xy),
             new parse_1.MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
             new parse_1.MParse.Matchfunctior("before  $X as  $Y ", before_xy),
-            new parse_1.MParse.Matchfunctior("before  $X ", before_x)
+            new parse_1.MParse.Matchfunctior("before  $X ", before_x),
+            new parse_1.MParse.Matchfunctior("const  $X as  $Y ", const_xy),
+            new parse_1.MParse.Matchfunctior("var   $X as  $Y ", var_xy)
         ];
         let xlines = linesSplit(xcode);
         for (var [i, iline] of xlines.entries()) {
@@ -835,6 +914,7 @@ if (fs.existsSync(script_filename)) {
 else {
     throw "Script " + script_filename + " File Not found";
 }
+ctx.init();
 SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
 console.log('end');
 //# sourceMappingURL=mcompiler.js.map

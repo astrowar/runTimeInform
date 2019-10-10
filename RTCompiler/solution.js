@@ -33,6 +33,8 @@ var Solution;
             let nsol = new Solution(this.state, this.value, {});
             if (var_name == "_")
                 throw new Error('variable is cannob be assigned');
+            if (value.toString() == "$thing")
+                throw new Error('variable is cannob be assigned');
             for (var i in this.var_values) {
                 nsol.var_values[i] = this.var_values[i];
             }
@@ -94,6 +96,12 @@ var Solution;
         for (var i in b.var_values) {
             if (i == "_")
                 throw "anonimous variable bind ?";
+            if (util_1.isUndefined(s.var_values[i]) == false) {
+                if (atoms_1.GTems.isEqually(s.var_values[i], b.var_values[i]) == false) {
+                    //throw new Error("assertion error ?")
+                    // console.log("variable overrride " + i )
+                }
+            }
             s.var_values[i] = b.var_values[i];
         }
         return s;
