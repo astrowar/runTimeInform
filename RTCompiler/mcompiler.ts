@@ -7,16 +7,16 @@ import { isUndefined } from "util";
 
 import { UTerm } from "./mterms";
 import { GTems } from "./atoms";
-import { Interp } from "./interp";
+import { Interp } from "./interp"
 import { MParse } from "./parse";
 
-
-type SGroup = string[];
+ 
+ 
 
 
 type ITerm = UTerm.ITerm
 var parseString = UTerm.parseString
-type MatchResult = UTerm.MatchResult
+ 
 var splitStringInput = UTerm.splitStringInput
  
 
@@ -229,6 +229,30 @@ namespace SyntaxParser {
         }
     }
 
+
+   
+    function* predDeclSet(args) {
+        let basePathens = [ 
+            new MParse.Matchfunctior("$funct ( $A )", funct_1), 
+            new MParse.Matchfunctior(" ( $A , $funct , $B )", funct_2)
+        ]
+        for (var vj of MParse.genPattens_i(args, basePathens)) { 
+            let pool = []
+            for (var vv of vj[1](vj[0])) {
+                if (isUndefined(vv) == false) {
+                    pool.push(vv)
+                }
+                else {
+                    pool = [] //um termo nao deu certo .. invalida toda sequencia
+                    break
+                }
+            } 
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries()) yield vv
+            if (pool.length > 0) break 
+        }
+    }
+
     function* predDecl0(args) {
         let basePathens = [     
             new MParse.Matchfunctior("$funct", funct_z)
@@ -405,7 +429,20 @@ namespace SyntaxParser {
         }
     }
 
+ 
+    function* expr_set(args_dict) {        
+        for (var px of predDeclSet(args_dict["$X"])) {
+            if (isUndefined(px)) continue
+            yield new GTems.Functor("set", px)
+        }
+    }
 
+    function* expr_reset(args_dict) {        
+        for (var px of predDeclSet(args_dict["$X"])) {
+            if (isUndefined(px)) continue
+            yield new GTems.Functor("reset", px)
+        }
+    }
 
     function* expr_plus(args_dict) {
         for (var x of expr_xy_operator("plus", args_dict)) yield x
@@ -599,6 +636,8 @@ namespace SyntaxParser {
             
             
             new MParse.Matchfunctior("not ( $X  )", expr_not),
+            new MParse.Matchfunctior("set ( $X  )", expr_set),
+            new MParse.Matchfunctior("reset ( $X  )", expr_reset),
             new MParse.Matchfunctior("$funct (   )", expr_funct_0),
             new MParse.Matchfunctior("$funct ( $args )", expr_funct),
             new MParse.Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),

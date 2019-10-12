@@ -374,6 +374,15 @@ var Interp;
             this.cons_atoms.unshift(const_entry);
             return true;
         }
+        setPredicate(stk, s, f_name, av) {
+            this.predicades_id++;
+            let unique_name = f_name + this.predicades_id.toString();
+            let p = new atoms_1.GTems.Functor(f_name, ...av);
+            let pred_actual = new PredicateEntry(unique_name, p, atoms_1.GTems.atom_true(), undefined, 0 + this.predicades_id);
+            pred_actual.set(PredicateKind.NONDIRECT);
+            this.predicades.unshift(pred_actual);
+            this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
+        }
         isList(v) {
             if (v instanceof atoms_1.GTems.GList) {
                 return true;
@@ -1135,7 +1144,8 @@ var Interp;
             }
             let hasFound = false;
             let query_satisf = false;
-            for (var [i, p] of this.predicades.entries()) {
+            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; });
+            for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf)  continue
                 if (p.entry.name != f_name)
                     continue;
@@ -1425,7 +1435,8 @@ var Interp;
             }
             let hasFound = false;
             let query_satisf = false;
-            for (var [i, p] of this.predicades.entries()) {
+            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; });
+            for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf)  continue
                 if (p.entry.name != f_name)
                     continue;
@@ -1525,41 +1536,54 @@ var Interp;
             return;
         }
         *query_ar1_inner(stk, sol, attribSelect, f_name, _arg1) {
-            if (f_name == "repeat") {
-                while (true) {
+            if (attribSelect != PredicateKind.UNLESS) {
+                if (f_name == "set") {
+                    //let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                    if (_arg1 instanceof atoms_1.GTems.Functor) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
+                            let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            this.setPredicate(stk, s, _arg1.name, av);
+                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        }
+                        return;
+                    }
+                }
+                if (f_name == "repeat") {
+                    while (true) {
+                        for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
+                            if (solution_1.Solution.isValid(x1)) {
+                                yield solution_1.Solution.fuse(sol, x1);
+                            }
+                            else {
+                                return;
+                            }
+                        }
+                    }
+                }
+                if (f_name == "not") {
+                    let has_yielded = false;
                     for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                         if (solution_1.Solution.isValid(x1)) {
-                            yield solution_1.Solution.fuse(sol, x1);
-                        }
-                        else {
-                            return;
-                        }
-                    }
-                }
-            }
-            if (f_name == "not") {
-                let has_yielded = false;
-                for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
-                    if (solution_1.Solution.isValid(x1)) {
-                        has_yielded = true;
-                        if (x1.value instanceof atoms_1.GTems.LiteralBool) {
-                            if (x1.value.value)
+                            has_yielded = true;
+                            if (x1.value instanceof atoms_1.GTems.LiteralBool) {
+                                if (x1.value.value)
+                                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
+                                else
+                                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            }
+                            else {
                                 yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
-                            else
-                                yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            }
                         }
                         else {
-                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_false(), {});
+                            has_yielded = true;
+                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
                         }
                     }
-                    else {
-                        has_yielded = true;
+                    if (has_yielded == false)
                         yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                    }
+                    return;
                 }
-                if (has_yielded == false)
-                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                return;
             }
             for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                 if (solution_1.Solution.isValid(x1)) {
@@ -1642,7 +1666,8 @@ var Interp;
                 return;
             }
             let hasFound = false;
-            for (var [i, p] of this.predicades.entries()) {
+            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; }); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
+            for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf) continue
                 if (p.entry.name != f_name)
                     continue;
@@ -1775,7 +1800,8 @@ var Interp;
                 return;
             }
             let hasFound = false;
-            for (var [i, p] of this.predicades.entries()) {
+            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; }); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
+            for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf) continue
                 if (p.entry.name != f_name)
                     continue;

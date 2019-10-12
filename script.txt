@@ -1,122 +1,14 @@
- 
- const color as  primary_color($c), $c
-var  $current_mood as  sad
+  
+do trad(apple)  => maça
+do trad(orange)  => laranja
 
-understand "shake $xs" as  atom_string($x,$xs) , obj($x),shaking($x)
-understand "shake $xs" as atom_string($x,$xs) , person($x), shaking($x)
-understand "turn down volume" ; "turn down music" ; "turn down the volume" ; "turn down the music" as lowering_volume() 
-understand "give/entregue $things ?to $someone" as atom_string($t,$things ) ,atom_string($s,$someone ) ,  giving($t, $s) 
+unless repr($x) as $x
+do repr($x) =>   trad($x) 
 
-
-do resolve($s,$a) as atom_string($a,$s ) 
-do resolve($s,$n ) => match($s,"$d $n"), write("= $d $n \n"), det($d) 
-
-do giving($thing , boy) as     write("[boy] get [$thing] :-D \n")  , [  ]
-do giving($thing , girl) =>  $current_mood = sad ,  write("[girl] refuse [$thing]... is too sad :-(\n" ) ,[$thing ]
-do giving($thing , girl) =>  $current_mood = happy ,  write("[girl] accept [$thing]... is too happy now :-(\n" ) ,[$thing ]
-do giving(flower , girl) =>    write("[girl] smeel [flower] and smile :-)\n" ) , $current_mood := happy , [ ]
-
-do shaking($x) => write("nothing happens with [$x]\n")
-do shaking($p) => person($p),write( "your shake it, now [$p] is angry\n")
-do shaking(flower) => write("a lot of pedal fall on the ground\n")
-
-unless repr($x) as expand("$x")
-do repr($x) => det($d,$x), expand("$d $x")
-
-do repr(girl) => det($d,girl), expand("$d lovelly girl")
-do repr(flower) => det($d,flower) , expand("$d red flower")
-do repr(ball) => "a ball"
-
-
-do person(boy) 
-do person(girl) 
-
-unless det(an, $ )
-do det(a, flower )
-do det(a, ball  )
-do det(a, girl )
-do det(o, boy )
-
-do det($s) as is_string($s) , atom_string($a,$s) , det($a)
-
-do det(a)
-do det(o)
-do det(as)
-do det(os)
-do det(um)
-do det(uma)
-do det(uns)
-do det(umas)
-
-do obj(flower) 
-do obj(ball) 
-do obj($x) as fruit($x);container($x)
-
-do desc(apple) as apple
-do desc(orange) as orange
-do desc(box) as convencional box
-
-do container(box)
-do fruit(apple)
-do fruit(orange)
-do inbastek(apple)
-
-do desc($x) => fruit($x), [yumm, desc($x)]
-do desc($x) => inbastek($x) ,[desc($x) ,in basket ]
-
-
-do flatten2([], [] )  
-do flatten2($x, $FlatL )  as not(is_list($x)), $FlatL = [$x] 
-do flatten2($LLs, $FlatL) =>   HT($L,$Ls,$LLs ) , flatten2($L, $nL), flatten2($Ls, $nLs) , append( $nL , $nLs, $FlatL)  
-
-
-
-do u($abL, $Z) as HT( $a, $bL, $abL ), HT( $b, $L, $bL ),{ $a=$b, u($bL,$Z) }; { $a != $b, u($bL,$Lu) , append([$a] , $Lu , $Z) }
-unless u($x, $y) as $x = $y
-
-do primary_color(blue) 
-do primary_color(red) 
-do primary_color(yelloy)   
-
-
-do link(a,b)
-do link(b,c)
-do link(c,d)
-do link(b,e)
-
-do ($x,route,$y) as  link($x,$y), [$x,$y]
-unless  ($x,route,$y) as  $r1 = route($x,$z), $r2 = route($z,$y), [ $r1,$r2]
-
-
-
-do sentence(winter) as "time to eat fat"
-do sentence(summer) as "hot as a hell"
-do sentence($s) as  "is " + $s + "hot as a hell"
-
-do qmain() as  u([1,2,2,3,4,4,6,7,7,7,7,7],$x),$x
-do qmain() as  $rr = route(a,d) , flatten2( $rr, $ro), u($ro , $ru), $ru
- 
- 
-do qmain() as append($x,$y,[1,2,3,1,2,3]),$x != $y,$x
-do qmain() as nextto($x,$x,[1,2,3,4,3,2,2,5,6,2,3,1]), $x
-do qmain() as $r = (a,route,d), flatten2($r,$rs), u( $rs, $u), $u
-
- 
- 
-do cmdparse($x) => parse($x)
-unless cmdparse($x) as write("unable to parse command: "),write("$x"),write("\n")
-
-do main() as cmdparse("give ball to boy") 
-do main() as cmdparse("give ball to girl") 
-do main() as cmdparse("give flower to girl") 
-do main() as cmdparse("give ball to girl") 
-do main() as cmdparse("entregue ball to boy") 
-
-
-do wmain() as  {obj($x);person($x)} , write("shake [$x]: "),shaking($x)
-
-do wmain() as  flatten2( [[1,color],[3,[$current_color,5,[6]],7],8,[9]] ,$L ) , $L
-do wmain() as  $x = 0, write("antes $x "), $x := 1, write(" depois $x") 
+do main() as (pedro,likes,$y),  write("pedro gosta de [$y] ")
+do main() as set( (pedro,likes, apple)) 
+do main() as set( (pedro,likes, box)) 
+do main() as ($x,likes,$y),[$x,$y]
 
  
 

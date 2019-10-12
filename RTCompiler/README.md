@@ -12,7 +12,7 @@ saidas dos termos podem ser
   true ... suceeso
   false .. esse pred nao foi unificado
   fail.. esse pred e todos os demais com omesmo nome falham
-
+  cut .. encerra a query
 
 definicoes
 
@@ -63,6 +63,14 @@ if Z
 end 
 
 ha comandos para suprimir, reativar, substituir ou restaurar ao anterior
+
+regras aplicadas a predicados dinamicos:
+   set , unset 
+   set ( P(...) ) , adiciona a regra na lista de predicados
+   unset ( P(...)) remove da lista de predicados TODOS os matchs de P
+     exemplo .. unset( p(x,_) ) , remove  p(x,y), p(x,z), p(x,w) .... por diante
+
+
 
 replace(  print final score ,  fancy final score) 
   informa que a regra acima esta sendo substituida por outra

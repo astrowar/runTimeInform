@@ -4,7 +4,7 @@
     "target": "es6",
     "lib": ["es6"],
     "sourceMap": true,
-    
+    "outDir": "build",
     "downlevelIteration": true
   },
   "exclude": [

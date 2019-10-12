@@ -210,6 +210,29 @@ var SyntaxParser;
                 break;
         }
     }
+    function* predDeclSet(args) {
+        let basePathens = [
+            new parse_1.MParse.Matchfunctior("$funct ( $A )", funct_1),
+            new parse_1.MParse.Matchfunctior(" ( $A , $funct , $B )", funct_2)
+        ];
+        for (var vj of parse_1.MParse.genPattens_i(args, basePathens)) {
+            let pool = [];
+            for (var vv of vj[1](vj[0])) {
+                if (util_1.isUndefined(vv) == false) {
+                    pool.push(vv);
+                }
+                else {
+                    pool = []; //um termo nao deu certo .. invalida toda sequencia
+                    break;
+                }
+            }
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries())
+                yield vv;
+            if (pool.length > 0)
+                break;
+        }
+    }
     function* predDecl0(args) {
         let basePathens = [
             new parse_1.MParse.Matchfunctior("$funct", funct_z)
@@ -388,6 +411,20 @@ var SyntaxParser;
             yield new atoms_1.GTems.Functor("not", cx);
         }
     }
+    function* expr_set(args_dict) {
+        for (var px of predDeclSet(args_dict["$X"])) {
+            if (util_1.isUndefined(px))
+                continue;
+            yield new atoms_1.GTems.Functor("set", px);
+        }
+    }
+    function* expr_reset(args_dict) {
+        for (var px of predDeclSet(args_dict["$X"])) {
+            if (util_1.isUndefined(px))
+                continue;
+            yield new atoms_1.GTems.Functor("reset", px);
+        }
+    }
     function* expr_plus(args_dict) {
         for (var x of expr_xy_operator("plus", args_dict))
             yield x;
@@ -557,6 +594,8 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("$X / $Y", expr_DIV),
             new parse_1.MParse.Matchfunctior("$X % $Y", expr_MOD),
             new parse_1.MParse.Matchfunctior("not ( $X  )", expr_not),
+            new parse_1.MParse.Matchfunctior("set ( $X  )", expr_set),
+            new parse_1.MParse.Matchfunctior("reset ( $X  )", expr_reset),
             new parse_1.MParse.Matchfunctior("$funct (   )", expr_funct_0),
             new parse_1.MParse.Matchfunctior("$funct ( $args )", expr_funct),
             new parse_1.MParse.Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),
