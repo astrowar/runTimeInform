@@ -1,14 +1,48 @@
-  
+
+do opposite(norte,sul)
+do opposite(leste,oeste)
+do opposite(sul,norte)
+do opposite(oeste,leste)
+
+do direction(norte)
+do direction(sul)
+do direction(oeste)
+do direction(leste)
+
 do trad(apple)  => maça
 do trad(orange)  => laranja
+do trad(box)  => caixa
+
 
 unless repr($x) as $x
 do repr($x) =>   trad($x) 
 
-do main() as (pedro,likes,$y),  write("pedro gosta de [$y] ")
-do main() as set( (pedro,likes, apple)) 
-do main() as set( (pedro,likes, box)) 
-do main() as ($x,likes,$y),[$x,$y]
+do main() as (pedro,likes,$y),  write("pedro gosta de [$y] \n")
+
+do fuit($x) as $x = {apple ; orange}
+
+do croute(sala , norte , jardim)
+do croute(sala , oeste , cozinha )
+do croute(cozinha , oeste , deposito )
+
+do porta(sala , jardim)
+
+do  route($x, $d, $y)  as   opposite($d,$d_opp), croute($y, $d_opp, $x )
+do  route($x, $d, $y)  as   croute($x, $d , $y )
+
+do saida($room) as route($room, $d, _) , $d
+
+do u($Z , $r) as HT( $a,$t, $Z ),  member($a,$t ) , write("> $t "), u( $t, $rx ) , $rx = $r
+
+do u($Z , $r) as HT( $a,$t, $Z ), not( member($a,$t ) ),write("< $t "), u( $t, $rx ) , append([$a] , $rx , $r)
+
+
+unless u($x, $y) as $x = $y
+
+
+do qmain() as  $y = findall($x, route( $x , _, _ ) ) , u($y,$salas) , $salas
+do qmain() as  route( $x,$d,$y ) ,[$x,$d,$y ]
+do main() as $x = [1,2,3,4,5,3,2,1] , meumber($x,$i) , $i
 
  
 

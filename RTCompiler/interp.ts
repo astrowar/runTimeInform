@@ -96,6 +96,7 @@ export namespace Interp {
 
 
     class PredicateEntry extends BaseEntry {
+        public complexity: number;
         constructor(public unique_name: string, public entry: GTems.Functor | GTems.Atom, public value: GTems.GBase, public condition: GTems.GBase, public prior: number) {
             super(unique_name, value, condition, prior)
             if ((entry instanceof GTems.Functor) == false && (entry instanceof GTems.Atom) == false) throw new Error("entry type is invalid")
@@ -127,10 +128,19 @@ export namespace Interp {
                 if (isUndefined(arg3) == false && cv.arg.length < 4) continue
 
 
-                if (isUndefined(arg0) == false) if (GTems.isEqually(cv.arg[0], arg0) == false) continue
-                if (isUndefined(arg1) == false) if (GTems.isEqually(cv.arg[1], arg1) == false) continue
-                if (isUndefined(arg2) == false) if (GTems.isEqually(cv.arg[2], arg2) == false) continue
-                if (isUndefined(arg3) == false) if (GTems.isEqually(cv.arg[3], arg3) == false) continue
+                if (isUndefined(arg0) == false){
+                    if (((cv.arg[0] instanceof GTems.Variable) && (arg0 instanceof GTems.Variable))  ==false )
+                        if (GTems.isEqually(cv.arg[0], arg0) == false) continue
+                }
+                if (isUndefined(arg1) == false) 
+                    if (((cv.arg[1] instanceof GTems.Variable) && (arg1 instanceof GTems.Variable))  ==false ) 
+                        if (GTems.isEqually(cv.arg[1], arg1) == false) continue
+                if (isUndefined(arg2) == false)
+                    if (((cv.arg[2] instanceof GTems.Variable) && (arg2 instanceof GTems.Variable))  ==false )
+                         if (GTems.isEqually(cv.arg[2], arg2) == false) continue
+                if (isUndefined(arg3) == false)
+                      if (((cv.arg[3] instanceof GTems.Variable) && (arg3 instanceof GTems.Variable))  ==false ) 
+                          if (GTems.isEqually(cv.arg[3], arg3) == false) continue
 
                 return true
             }
@@ -204,13 +214,23 @@ export namespace Interp {
     function predicateEntryOrder(a: PredicateEntry, b: PredicateEntry): number {
         let prior_A = -1
         let prior_B = 1
+
+        if (a.entry.name > b.entry.name) return prior_A
+        if (a.entry.name < b.entry.name) return prior_B
+
         if (a.prior > b.prior) return prior_A
         if (a.prior < b.prior) return prior_B
 
+
         if (isUndefined(a.condition) == false && isUndefined(b.condition)) return prior_A
         if (isUndefined(b.condition) == false && isUndefined(a.condition)) return prior_B
-        let cp_a = getComplexity(a.entry)
-        let cp_b = getComplexity(b.entry)
+        
+        if (a.complexity < 0 ) a.complexity = getComplexity(a.entry)
+        if (b.complexity < 0 ) b.complexity = getComplexity(a.entry)
+
+        let cp_a =  (a.complexity)
+        let cp_b =  (b.complexity)
+        
         if (cp_a > cp_b) return prior_A
         if (cp_b > cp_a) return prior_B
 
@@ -376,19 +396,64 @@ export namespace Interp {
         }
 
 
+        existPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]){
+            for(var [i,p] of this.predicades.entries()){
+                if (p.entry instanceof GTems.Functor){
+                if (p.entry.name == f_name)
+                if ( av.length != p.entry.args.length) continue
+                let n = av.length
+                let allBind = true 
+                for(var j =0; j< n;j++){
+                   if (p.entry.args[j] instanceof GTems.Variable) { allBind = false ; break }
+                   let b =Solution.bind(s, p.entry.args[j], av[j]);                    
+                   if ( Solution.isValid( b ) ==false ){ allBind = false ; break }
+                }
+                if (allBind) {                      
+                  return true
+                }
+               }
+           }
+           return false 
+
+        }
+
         setPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {
+            if (this.existPredicate(stk,s,f_name, av)) return 
+
             this.predicades_id++;
             let unique_name = f_name + this.predicades_id.toString()
             let p = new GTems.Functor(f_name, ...av)
             let pred_actual = new PredicateEntry(unique_name, p, GTems.atom_true(), undefined, 0 + this.predicades_id)
-
             pred_actual.set(PredicateKind.NONDIRECT);
             this.predicades.unshift(pred_actual)
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b) })
-
         }
 
+        unsetPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {           
+            let p_remove =[]
+            for(var [i,p] of this.predicades.entries()){
+                 if (p.entry instanceof GTems.Functor){
+                 if (p.entry.name == f_name)
+                 if ( av.length != p.entry.args.length) continue
+                 let n = av.length
+                 let allBind = true 
+                 for(var j =0; j< n;j++){
+                    if (p.entry.args[j] instanceof GTems.Variable) { allBind = false ; break }
+                    let b =Solution.bind(s, p.entry.args[j], av[j]);                    
+                    if ( Solution.isValid( b ) ==false ){ allBind = false ; break }
+                 }
+                 if (allBind) {                      
+                    p_remove.push(p.unique_name)
+                 }
+                }
+            }
+            
+            for(var [i,u] of p_remove.entries()){
+                this.predicades =this.predicades.filter(el => { return  el.unique_name  !== u; } )
+            }
 
+  
+        }
 
         isList(v: GTems.GBase): boolean {
             if (v instanceof GTems.GList) {
@@ -1409,6 +1474,23 @@ export namespace Interp {
 
         *query_ar2_inner(stk: QueryStack, sol: Solution.Solution, attribSelect: PredicateKind, f_name: string, _arg1: GTems.GBase, _arg2: GTems.GBase) {
 
+
+            
+            if (f_name == "findall") {
+                let results:GTems.GBase[] = []
+                if (_arg1 instanceof GTems.Variable) {
+                    for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
+                        if (Solution.isValid(x2)) {
+                            results.push( x2.var_values[_arg1.name]) 
+                        }
+                    }
+                }
+                var cpy =  new Solution.Solution(Solution.SolutionState.QTrue, new  GTems.GList( results ), {})                                
+                yield cpy
+                return
+            }
+
+
             if (f_name == "assign") {
                 if (_arg1 instanceof GTems.Variable) {
                     for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
@@ -1715,6 +1797,11 @@ export namespace Interp {
         *query_ar1_inner(stk: QueryStack, sol: Solution.Solution, attribSelect: PredicateKind, f_name: string, _arg1: GTems.GBase) {
 
             if (attribSelect != PredicateKind.UNLESS) {
+
+
+                  
+
+
                 if (f_name == "set") {
                     //let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                     if (_arg1 instanceof GTems.Functor) {
@@ -1726,6 +1813,32 @@ export namespace Interp {
                         return
                     }
                 }
+
+                if (f_name == "set") {
+                    //let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                    if (_arg1 instanceof GTems.Functor) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
+                            let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                            this.setPredicate(stk, s, _arg1.name, av)
+                            yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                        }
+                        return
+                    }
+                }  
+                
+                if (f_name == "unset") {
+                     
+                    if (_arg1 instanceof GTems.Functor) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
+                            let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                            this.unsetPredicate(stk, s, _arg1.name, av)
+                            yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                        }
+                        return
+                    }
+                }
+
+
 
                 if (f_name == "repeat") {
                     while (true) {

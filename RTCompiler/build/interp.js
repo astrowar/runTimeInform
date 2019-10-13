@@ -142,18 +142,23 @@ var Interp;
                     continue;
                 if (util_1.isUndefined(arg3) == false && cv.arg.length < 4)
                     continue;
-                if (util_1.isUndefined(arg0) == false)
-                    if (atoms_1.GTems.isEqually(cv.arg[0], arg0) == false)
-                        continue;
+                if (util_1.isUndefined(arg0) == false) {
+                    if (((cv.arg[0] instanceof atoms_1.GTems.Variable) && (arg0 instanceof atoms_1.GTems.Variable)) == false)
+                        if (atoms_1.GTems.isEqually(cv.arg[0], arg0) == false)
+                            continue;
+                }
                 if (util_1.isUndefined(arg1) == false)
-                    if (atoms_1.GTems.isEqually(cv.arg[1], arg1) == false)
-                        continue;
+                    if (((cv.arg[1] instanceof atoms_1.GTems.Variable) && (arg1 instanceof atoms_1.GTems.Variable)) == false)
+                        if (atoms_1.GTems.isEqually(cv.arg[1], arg1) == false)
+                            continue;
                 if (util_1.isUndefined(arg2) == false)
-                    if (atoms_1.GTems.isEqually(cv.arg[2], arg2) == false)
-                        continue;
+                    if (((cv.arg[2] instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.Variable)) == false)
+                        if (atoms_1.GTems.isEqually(cv.arg[2], arg2) == false)
+                            continue;
                 if (util_1.isUndefined(arg3) == false)
-                    if (atoms_1.GTems.isEqually(cv.arg[3], arg3) == false)
-                        continue;
+                    if (((cv.arg[3] instanceof atoms_1.GTems.Variable) && (arg3 instanceof atoms_1.GTems.Variable)) == false)
+                        if (atoms_1.GTems.isEqually(cv.arg[3], arg3) == false)
+                            continue;
                 return true;
             }
             return false;
@@ -216,6 +221,10 @@ var Interp;
     function predicateEntryOrder(a, b) {
         let prior_A = -1;
         let prior_B = 1;
+        if (a.entry.name > b.entry.name)
+            return prior_A;
+        if (a.entry.name < b.entry.name)
+            return prior_B;
         if (a.prior > b.prior)
             return prior_A;
         if (a.prior < b.prior)
@@ -224,8 +233,12 @@ var Interp;
             return prior_A;
         if (util_1.isUndefined(b.condition) == false && util_1.isUndefined(a.condition))
             return prior_B;
-        let cp_a = getComplexity(a.entry);
-        let cp_b = getComplexity(b.entry);
+        if (a.complexity < 0)
+            a.complexity = getComplexity(a.entry);
+        if (b.complexity < 0)
+            b.complexity = getComplexity(a.entry);
+        let cp_a = (a.complexity);
+        let cp_b = (b.complexity);
         if (cp_a > cp_b)
             return prior_A;
         if (cp_b > cp_a)
@@ -374,7 +387,35 @@ var Interp;
             this.cons_atoms.unshift(const_entry);
             return true;
         }
+        existPredicate(stk, s, f_name, av) {
+            for (var [i, p] of this.predicades.entries()) {
+                if (p.entry instanceof atoms_1.GTems.Functor) {
+                    if (p.entry.name == f_name)
+                        if (av.length != p.entry.args.length)
+                            continue;
+                    let n = av.length;
+                    let allBind = true;
+                    for (var j = 0; j < n; j++) {
+                        if (p.entry.args[j] instanceof atoms_1.GTems.Variable) {
+                            allBind = false;
+                            break;
+                        }
+                        let b = solution_1.Solution.bind(s, p.entry.args[j], av[j]);
+                        if (solution_1.Solution.isValid(b) == false) {
+                            allBind = false;
+                            break;
+                        }
+                    }
+                    if (allBind) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
         setPredicate(stk, s, f_name, av) {
+            if (this.existPredicate(stk, s, f_name, av))
+                return;
             this.predicades_id++;
             let unique_name = f_name + this.predicades_id.toString();
             let p = new atoms_1.GTems.Functor(f_name, ...av);
@@ -382,6 +423,35 @@ var Interp;
             pred_actual.set(PredicateKind.NONDIRECT);
             this.predicades.unshift(pred_actual);
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
+        }
+        unsetPredicate(stk, s, f_name, av) {
+            let p_remove = [];
+            for (var [i, p] of this.predicades.entries()) {
+                if (p.entry instanceof atoms_1.GTems.Functor) {
+                    if (p.entry.name == f_name)
+                        if (av.length != p.entry.args.length)
+                            continue;
+                    let n = av.length;
+                    let allBind = true;
+                    for (var j = 0; j < n; j++) {
+                        if (p.entry.args[j] instanceof atoms_1.GTems.Variable) {
+                            allBind = false;
+                            break;
+                        }
+                        let b = solution_1.Solution.bind(s, p.entry.args[j], av[j]);
+                        if (solution_1.Solution.isValid(b) == false) {
+                            allBind = false;
+                            break;
+                        }
+                    }
+                    if (allBind) {
+                        p_remove.push(p.unique_name);
+                    }
+                }
+            }
+            for (var [i, u] of p_remove.entries()) {
+                this.predicades = this.predicades.filter(el => { return el.unique_name !== u; });
+            }
         }
         isList(v) {
             if (v instanceof atoms_1.GTems.GList) {
@@ -1267,6 +1337,19 @@ var Interp;
             return;
         }
         *query_ar2_inner(stk, sol, attribSelect, f_name, _arg1, _arg2) {
+            if (f_name == "findall") {
+                let results = [];
+                if (_arg1 instanceof atoms_1.GTems.Variable) {
+                    for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
+                        if (solution_1.Solution.isValid(x2)) {
+                            results.push(x2.var_values[_arg1.name]);
+                        }
+                    }
+                }
+                var cpy = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, new atoms_1.GTems.GList(results), {});
+                yield cpy;
+                return;
+            }
             if (f_name == "assign") {
                 if (_arg1 instanceof atoms_1.GTems.Variable) {
                     for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
@@ -1543,6 +1626,27 @@ var Interp;
                         for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
                             let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
                             this.setPredicate(stk, s, _arg1.name, av);
+                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        }
+                        return;
+                    }
+                }
+                if (f_name == "set") {
+                    //let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                    if (_arg1 instanceof atoms_1.GTems.Functor) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
+                            let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            this.setPredicate(stk, s, _arg1.name, av);
+                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        }
+                        return;
+                    }
+                }
+                if (f_name == "unset") {
+                    if (_arg1 instanceof atoms_1.GTems.Functor) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
+                            let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            this.unsetPredicate(stk, s, _arg1.name, av);
                             yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
                         }
                         return;
