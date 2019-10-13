@@ -1168,6 +1168,33 @@ var Interp;
             return;
         }
         *query_ar3_inner(stk, sol, attribSelect, f_name, _arg1, _arg2, _arg3) {
+            if (attribSelect == PredicateKind.NOMINAL) {
+                if (f_name == "if_else") {
+                    let has_query = false;
+                    for (var sol_if of this.query(stk, sol, _arg1)) {
+                        if (sol_if instanceof solution_1.Solution.Solution) {
+                            has_query = true;
+                            if (solution_1.Solution.isTrue(sol_if)) {
+                                sol_if = solution_1.Solution.fuse(sol_if, sol);
+                                for (var sol_then of this.query(stk, sol_if, _arg2)) {
+                                    yield sol_then;
+                                }
+                            }
+                            else {
+                                for (var sol_else of this.query(stk, sol_if, _arg3)) {
+                                    yield sol_else;
+                                }
+                            }
+                        }
+                    }
+                    if (has_query == false) {
+                        for (var sol_else of this.query(stk, sol, _arg3)) {
+                            yield sol_else;
+                        }
+                    }
+                    return;
+                }
+            }
             for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                 if (solution_1.Solution.isValid(x1)) {
                     let nsol = solution_1.Solution.fuse(sol, x1);

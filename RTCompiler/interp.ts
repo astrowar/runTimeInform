@@ -1294,6 +1294,40 @@ export namespace Interp {
         }
 
         *query_ar3_inner(stk: QueryStack, sol: Solution.Solution, attribSelect: PredicateKind, f_name: string, _arg1: GTems.GBase, _arg2: GTems.GBase, _arg3: GTems.GBase) {
+            
+            
+            if (attribSelect == PredicateKind.NOMINAL) {
+                if (f_name == "if_else") { 
+                    let has_query =false 
+                    for (var sol_if of this.query(stk, sol, _arg1)) {
+                        if (sol_if instanceof Solution.Solution) {
+                            has_query = true 
+                            if (Solution.isTrue(sol_if)) {
+                                sol_if = Solution.fuse(sol_if,sol)
+                                for (var sol_then of this.query(stk, sol_if, _arg2)) {
+                                    yield sol_then
+                                }
+                            }
+                            else {
+                                for (var sol_else of this.query(stk, sol_if, _arg3)) {                                     
+                                    yield sol_else
+                                }
+                            }
+                        }
+                    }
+                    if(has_query ==false ){
+                        for (var sol_else of this.query(stk, sol , _arg3)) {
+                            yield sol_else
+                        }
+                    }
+                    return
+                }
+
+            }
+            
+            
+            
+            
             for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                 if (Solution.isValid(x1)) {
                     let nsol = Solution.fuse(sol, x1)

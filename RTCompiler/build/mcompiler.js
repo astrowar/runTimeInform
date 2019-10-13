@@ -74,6 +74,16 @@ var SyntaxParser;
         }
         return true;
     }
+    function isValidAtomNameStr(pstr) {
+        if (pstr.length < 1)
+            return false;
+        for (var c of pstr) {
+            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
+                return false;
+            }
+        }
+        return true;
+    }
     function funct_resolve_2(pname, args, args2) {
         if (pname.length != 1)
             return undefined;
@@ -403,6 +413,24 @@ var SyntaxParser;
             }
         }
     }
+    function* expr_if_else(args_dict) {
+        let x = args_dict["$X"];
+        let y = args_dict["$Y"];
+        let z = args_dict["$Z"];
+        for (var cx of codebodyMatch(x)) {
+            if (util_1.isUndefined(cx))
+                continue;
+            for (var cy of codebodyMatch(y)) {
+                if (util_1.isUndefined(cy))
+                    continue;
+                for (var cz of codebodyMatch(z)) {
+                    if (util_1.isUndefined(cz))
+                        continue;
+                    yield new atoms_1.GTems.Functor("if_else", cx, cy, cz);
+                }
+            }
+        }
+    }
     function* expr_not(args_dict) {
         let x = args_dict["$X"];
         for (var cx of codebodyMatch(x)) {
@@ -567,7 +595,9 @@ var SyntaxParser;
             for (var [i, xx] of x.entries()) {
                 all_str.push(xx.gettext());
             }
-            yield new atoms_1.GTems.Atom(all_str.join(" "));
+            let atm_name = all_str.join(" ");
+            if (isValidAtomNameStr(atm_name))
+                yield new atoms_1.GTems.Atom(atm_name);
         }
     }
     function* codebodyMatch(args) {
@@ -593,6 +623,7 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("$X * $Y", expr_MUL),
             new parse_1.MParse.Matchfunctior("$X / $Y", expr_DIV),
             new parse_1.MParse.Matchfunctior("$X % $Y", expr_MOD),
+            new parse_1.MParse.Matchfunctior("if ( $X  ) $Y else $Z", expr_if_else),
             new parse_1.MParse.Matchfunctior("not ( $X  )", expr_not),
             new parse_1.MParse.Matchfunctior("set ( $X  )", expr_set),
             new parse_1.MParse.Matchfunctior("reset ( $X  )", expr_reset),
@@ -795,27 +826,27 @@ var SyntaxParser;
     }
     function MatchSyntaxDecl(xcode, resolutionFunc) {
         let basePathens = [
-            new parse_1.MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
+            // new MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
             new parse_1.MParse.Matchfunctior("do $X = > $Y ", syntax_xy_direct),
-            new parse_1.MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
+            // new MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
             new parse_1.MParse.Matchfunctior("do -  $X as $Y ", syntax_xy_low),
             new parse_1.MParse.Matchfunctior("do -  $X  ", syntax_x_low),
-            new parse_1.MParse.Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
+            // new MParse.Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
             new parse_1.MParse.Matchfunctior("do +  $X as $Y ", syntax_xy_high),
             new parse_1.MParse.Matchfunctior("do +  $X  ", syntax_x_high),
-            new parse_1.MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+            //  new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new parse_1.MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             new parse_1.MParse.Matchfunctior("do  $X  ", syntax_x),
-            new parse_1.MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+            // new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new parse_1.MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             new parse_1.MParse.Matchfunctior("do  $X  ", syntax_x),
-            new parse_1.MParse.Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
+            //  new MParse.Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
             new parse_1.MParse.Matchfunctior("unless  $X as $Y ", unless_xy),
             new parse_1.MParse.Matchfunctior("unless  $X  ", unless_x),
             new parse_1.MParse.Matchfunctior("do  $X  ?.", syntax_x),
             new parse_1.MParse.Matchfunctior("let  $X as $Y ", let_xy),
             new parse_1.MParse.Matchfunctior("understand   $X as $Y ", understand_xy),
-            new parse_1.MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
+            //   new MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
             new parse_1.MParse.Matchfunctior("before  $X as  $Y ", before_xy),
             new parse_1.MParse.Matchfunctior("before  $X ", before_x),
             new parse_1.MParse.Matchfunctior("const  $X as  $Y ", const_xy),

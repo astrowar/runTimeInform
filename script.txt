@@ -32,18 +32,22 @@ do  route($x, $d, $y)  as   croute($x, $d , $y )
 
 do saida($room) as route($room, $d, _) , $d
 
-do u($Z , $r) as HT( $a,$t, $Z ),  member($a,$t ) , write("> $t "), u( $t, $rx ) , $rx = $r
+do uu($Z , $r) as HT( $a,$t, $Z ),  member($a,$t ) , write("> $t "), u( $t, $rx ) , $rx = $r
+do uu($Z , $r) as HT( $a,$t, $Z ), not( member($a,$t ) ),write("< $t "), u( $t, $rx ) , append([$a] , $rx , $r)
 
-do u($Z , $r) as HT( $a,$t, $Z ), not( member($a,$t ) ),write("< $t "), u( $t, $rx ) , append([$a] , $rx , $r)
-
+do u($Z , $r) as HT( $a,$t, $Z ),u( $t, $rx ), if( member($a,$t ) ) { write("< $a "), $rx = $r } else {write("> $a "),  append([$a] , $rx , $r) }
 
 unless u($x, $y) as $x = $y
 
 
 do qmain() as  $y = findall($x, route( $x , _, _ ) ) , u($y,$salas) , $salas
 do qmain() as  route( $x,$d,$y ) ,[$x,$d,$y ]
-do main() as $x = [1,2,3,4,5,3,2,1] , meumber($x,$i) , $i
-
+do qmain() as $x = [1,2,3,5,4,5,3  ] , u($x,$r), $r
+do main() as if(true) write(" x "), write(" x2 ")  else write(" y "),write(" z ")
  
+do class(thing) 
+do class(container,thing)
+
+
 
  

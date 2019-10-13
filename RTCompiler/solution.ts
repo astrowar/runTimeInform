@@ -72,7 +72,13 @@ export namespace Solution{
         }
     }
 
-
+    export function isTrue(a: Solution) {
+        if (isValid(a) ==false ) return false 
+        if (a.value instanceof GTems.LiteralBool){
+            return a.value
+        }
+        return true
+    }
     export function isValid(a: Solution) {
         if (a.state == SolutionState.QTrue) return true
         if (a.state == SolutionState.QCut) return true
