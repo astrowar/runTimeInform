@@ -82,6 +82,8 @@ var SyntaxParser;
                 return false;
             }
         }
+        if (pstr[0] == "$")
+            return false;
         return true;
     }
     function funct_resolve_2(pname, args, args2) {
@@ -596,8 +598,9 @@ var SyntaxParser;
                 all_str.push(xx.gettext());
             }
             let atm_name = all_str.join(" ");
-            if (isValidAtomNameStr(atm_name))
+            if (isValidAtomNameStr(atm_name)) {
                 yield new atoms_1.GTems.Atom(atm_name);
+            }
         }
     }
     function* codebodyMatch(args) {
@@ -787,7 +790,15 @@ var SyntaxParser;
         let xcs = [];
         let p = 0;
         let lc = 0;
+        let comment = false;
         for (var i = 0; i < n; ++i) {
+            if (xcode[i] == "/" && i < n - 1)
+                if (xcode[i + 1] == "/") {
+                    // pula para o fim da linha  
+                    while (xcode[i] !== "\n" && i < n)
+                        i++;
+                    continue;
+                }
             if (xcode[i] == "\n")
                 lc = lc + 1;
             if (xcode[i] == "\r")

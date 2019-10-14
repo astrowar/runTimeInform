@@ -67,7 +67,7 @@ var Solution;
         if (isValid(a) == false)
             return false;
         if (a.value instanceof atoms_1.GTems.LiteralBool) {
-            return a.value;
+            return a.value.value;
         }
         return true;
     }

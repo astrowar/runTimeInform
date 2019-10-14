@@ -1,5 +1,6 @@
  
 import { UTerm } from "./mterms";
+import { isString } from "util";
  
 
 type ITerm = UTerm.ITerm
@@ -16,16 +17,40 @@ export namespace MParse{
   export  class Matchfunctior {
         constructor(public mstr: string, public func: any) { }
     }
+
+    function isSameTermArray(a: ITerm[], b: ITerm[] | string) {
+
+        if (isString(b)) { 
+            return false
+        } 
+        if (a.length != b.length) return false
+        let n = a.length
+        for (var i = 0; i < n; i++) {
+            if (a[i].txt != b[i].txt) {
+                return false
+            }
+        }
+        return true; //todos iguais
+    }
+ 
+
     function* genPattens_ii(iline: ITerm[], matc: string) {
         {
             for (var vqxxxx of parseString(iline, matc)) {
                 let vxxx: MatchResult = <MatchResult>vqxxxx
                 let q = {}
+                let matchIsValid = true 
                 for (var sxxx of vxxx.entries()) {
-                    q[<string>sxxx[0]] = sxxx[1]
+                    let varname: string = <string>sxxx[0]
+                    if (q[varname] == undefined){   q[varname] = sxxx[1] }
+                    else {
+                        //verifica se ja existe e se é a mesma coisa
+                        let term_old = q[varname]
+                        if (isSameTermArray(term_old, sxxx[1]) == false ) { matchIsValid =false; break }
+                    } 
                     //yield sxxx
                 }
-                yield q
+                if (matchIsValid)   yield q
             }
         }
         return

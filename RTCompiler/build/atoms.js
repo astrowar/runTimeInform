@@ -12,6 +12,8 @@ var GTems;
                 return false;
             }
         }
+        if (pstr[0] == "$")
+            return false;
         return true;
     }
     class Functor extends GBase {
@@ -120,7 +122,7 @@ var GTems;
             this.items = _items;
         }
         toString() {
-            let r = "[" + (this.items.map((x) => { return x.toString(); })).join(" , ") + "]";
+            let r = "(" + (this.items.map((x) => { return x.toString(); })).join(" , ") + ")";
             return r;
         }
         clone() { return new GList(this.items.map((x) => x.clone())); }

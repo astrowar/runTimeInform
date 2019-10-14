@@ -95,6 +95,7 @@ namespace SyntaxParser {
                 return false
             }
         }
+        if (pstr[0] == "$") return false 
         return true
     }
 
@@ -626,8 +627,11 @@ namespace SyntaxParser {
             {
                 all_str.push(xx.gettext() )
             }
-            let atm_name = all_str.join(" ")
-            if (isValidAtomNameStr(atm_name)) yield new GTems.Atom(atm_name)  
+            let atm_name = all_str.join(" ")            
+            if (isValidAtomNameStr(atm_name)) 
+            { 
+                yield new GTems.Atom(atm_name)  
+            }
         }
     }
 
@@ -860,7 +864,14 @@ namespace SyntaxParser {
         let xcs: LineCode[] = []
         let p = 0;
         let lc =0 
+        let comment = false 
         for (var i = 0; i < n; ++i) {
+            if (xcode[i] =="/" && i <n-1 ) if (xcode[i+1] == "/") { 
+                // pula para o fim da linha  
+                while (xcode[i] !== "\n" && i< n) i++   
+                continue             
+            }
+
             if (xcode[i] == "\n") lc= lc+1
             if (xcode[i] == "\r") continue
 
@@ -944,7 +955,7 @@ namespace SyntaxParser {
         ]
         let xlines = linesSplit(xcode)
         for (var [i, iline] of xlines.entries()) {
-
+ 
             if (isEmptyLine(iline.line)) continue
             let sline = splitStringInput(iline.line)
 

@@ -12,7 +12,9 @@ export namespace Interp {
     function findEndAtom(x: string, i: number) {
         let n = x.length
         while (i < n) {
-            if (x[i] == " " || (";.,()[]|&\n\r".indexOf(x[i]) > -1)) { return i }
+            if (x[i] == " " )return i
+            if (";.,()[]|&\n\r".indexOf(x[i]) > -1) { return i }
+            if ("\\".indexOf(x[i]) > -1) { return i }
             i = i + 1
         }
         return i;
@@ -43,6 +45,8 @@ export namespace Interp {
 
         NONDIRECT,
         DIRECT,
+
+        DYNAMIC, STATIC
     }
 
     class BaseEntry {
@@ -65,6 +69,9 @@ export namespace Interp {
 
             if (x == PredicateKind.NONDIRECT) this.swap_attr(PredicateKind.DIRECT, PredicateKind.NONDIRECT);
             if (x == PredicateKind.DIRECT) this.swap_attr(PredicateKind.NONDIRECT, PredicateKind.DIRECT);
+
+            if (x == PredicateKind.STATIC) this.swap_attr(PredicateKind.DYNAMIC, PredicateKind.STATIC);
+            if (x == PredicateKind.DYNAMIC) this.swap_attr(PredicateKind.STATIC, PredicateKind.DYNAMIC);
 
         }
 
@@ -259,6 +266,8 @@ export namespace Interp {
         if (cp_b > cp_a) return prior_B
 
         if (isUndefined(a.condition) == false && isUndefined(b.condition) == false) {
+
+  
             let cd_a = getComplexityTerm(a.condition)
             let cd_b = getComplexityTerm(b.condition)
             if (cd_a > cd_b) return prior_A
@@ -319,6 +328,8 @@ export namespace Interp {
         predicades_id: number = 1
         writebuffer: string = "";
         warringbuffer: string[] = [];
+
+        //variaveis globais
         var_atoms: VarEntry[] = []
 
 
@@ -353,6 +364,8 @@ export namespace Interp {
                 if (opt == "direct") pred_actual.set(PredicateKind.DIRECT);
             }
 
+            pred_actual.set(PredicateKind.STATIC);
+
             this.predicades.unshift(pred_actual)
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b) })
             return true
@@ -375,6 +388,8 @@ export namespace Interp {
                 if (opt == "unless") pred_actual.set(PredicateKind.UNLESS);
                 if (opt == "direct") pred_actual.set(PredicateKind.DIRECT);
             }
+
+            pred_actual.set(PredicateKind.STATIC);
 
             this.understands.unshift(pred_actual)
             this.understands = this.understands.sort((a, b) => { return understandEntryOrder(a, b) })
@@ -424,6 +439,8 @@ export namespace Interp {
             let unique_name = f_name + this.predicades_id.toString()
             let p = new GTems.Functor(f_name, ...av)
             let pred_actual = new PredicateEntry(unique_name, p, GTems.atom_true(), undefined, 0 + this.predicades_id)
+
+            pred_actual.set(PredicateKind.DYNAMIC);
             pred_actual.set(PredicateKind.NONDIRECT);
             this.predicades.unshift(pred_actual)
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b) })
@@ -434,6 +451,7 @@ export namespace Interp {
             for(var [i,p] of this.predicades.entries()){
                  if (p.entry instanceof GTems.Functor){
                  if (p.entry.name == f_name)
+                 if (p.has(PredicateKind.STATIC)) continue //nao apaga predicados estaticos
                  if ( av.length != p.entry.args.length) continue
                  let n = av.length
                  let allBind = true 
@@ -518,6 +536,22 @@ export namespace Interp {
         }
 
 
+        expandVar(sol: Solution.Solution, varname:string ) : GTems.GBase {
+            let vx = sol.var_values[varname]
+            if ( isUndefined(vx)){
+                for (var [vi, ve] of this.var_atoms.entries()) {
+                    if (ve.unique_name == varname) {
+                       
+                        return ve.value
+                    }
+                }
+                return undefined
+            }
+          
+            return vx
+            
+            
+        }
         expandString(stk: QueryStack, sol: Solution.Solution, x: string): string {
             let buffer = ""
             let i = -1;
@@ -527,7 +561,7 @@ export namespace Interp {
                 if (x[i] == "$") {
                     let j = findEndAtom(x, i)
                     let varname = x.substr(i + 1, j - i - 1)
-                    let vx = sol.var_values[varname]
+                    let vx = this.expandVar(sol,varname)
                     buffer += (isUndefined(vx) ? "$" + varname : vx.toString());
                     i = j - 1
                     continue
@@ -655,10 +689,12 @@ export namespace Interp {
                 //process.stderr.write("Warring:" + wm) 
                 console.log("Warring:" + wm)
             }
+            this.warringbuffer = []
 
             let mwriteP = this.writebuffer.replace(new RegExp("\\\\n", 'g'), "\r\n");
             //process.stdout.write(mwriteP)   
             console.log(mwriteP)
+            this.writebuffer = ""
 
             return r
         }
@@ -1104,6 +1140,32 @@ export namespace Interp {
             throw new Error("invalid argument for member, segond arg must be a list")
         }
 
+     
+
+        *buildIn_random_member(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
+
+            let getRandomInt = function(min, max) {
+                min = Math.ceil(min);
+                max = Math.floor(max);
+                return Math.floor(Math.random() * (max - min)) + min;
+              }
+
+
+            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+
+            if (arg2 instanceof GTems.GList) {
+                let i = getRandomInt(0,arg2.items.length )
+                {                
+                    let r = this.bind(sol_next, arg2.items[i], arg1)
+                    if (Solution.isValid(r)) { yield r }
+                }
+                return
+
+            }
+            throw new Error("invalid argument for member, segond arg must be a list")
+        }
+
+
 
 
         *buildIn_nextto(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, arg3: GTems.GBase) {
@@ -1309,7 +1371,7 @@ export namespace Interp {
                                 }
                             }
                             else {
-                                for (var sol_else of this.query(stk, sol_if, _arg3)) {                                     
+                                for (var sol_else of this.query(stk, sol, _arg3)) {                                     
                                     yield sol_else
                                 }
                             }
@@ -1612,7 +1674,14 @@ export namespace Interp {
                 }
                 return
             }
+            if (f_name == "random_member") {
+                for (var qqm of this.buildIn_random_member(stk, sol, arg1, arg2)) {
+                    yield qqm
+                }
+                return
+            }
 
+           
 
 
             if (f_name == "atom_string") {
@@ -1815,7 +1884,8 @@ export namespace Interp {
             let hasY: boolean = false
             for (var s of this.query_ar1_inner(stk, sol, PredicateKind.NOMINAL, f_name, _arg1)) {
                 yield s
-                if (Solution.isValid(s)) hasY = true
+                hasY = true
+                //if (Solution.isValid(s))
             }
             if (hasY == false) {
                 for (var sq of this.query_ar1_inner(stk, sol, PredicateKind.UNLESS, f_name, _arg1)) {
@@ -1876,13 +1946,19 @@ export namespace Interp {
 
                 if (f_name == "repeat") {
                     while (true) {
+                        let hasQuery = false
                         for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
-                            if (Solution.isValid(x1)) {
+                            hasQuery = true 
+                            if (Solution.isTrue(x1)) {
                                 yield Solution.fuse(sol, x1)
                             }
                             else {
                                 return
                             }
+                        }
+                        if (hasQuery ==false ) {
+                            //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
+                            return 
                         }
                     }
                 }
@@ -1905,7 +1981,11 @@ export namespace Interp {
                             yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                         }
                     }
-                    if (has_yielded == false) yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                    if (has_yielded == false) 
+                       { 
+                             yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                       }
+
                     return
                 }
             }
@@ -2009,8 +2089,12 @@ export namespace Interp {
 
             if (f_name == "write") {
                 if (arg1 instanceof GTems.LiteralStr) { this.write(stk, sol, arg1.value); }
-                else this.write(stk, sol, arg1.toString());
+                else 
+                { 
+                    this.write(stk, sol, arg1.toString()); 
+                }
 
+             
                 yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                 return
             }
@@ -2140,7 +2224,9 @@ export namespace Interp {
         write(stk: QueryStack, sol: Solution.Solution, arg0: string) {
             let msg = this.expandString(stk, sol, arg0)
 
+         
             this.writebuffer = this.writebuffer + msg
+            
         }
         warring(arg0: string) {
             this.warringbuffer.push(arg0)

@@ -72,10 +72,10 @@ export namespace Solution{
         }
     }
 
-    export function isTrue(a: Solution) {
+    export function isTrue(a: Solution):boolean {
         if (isValid(a) ==false ) return false 
         if (a.value instanceof GTems.LiteralBool){
-            return a.value
+            return a.value.value
         }
         return true
     }
