@@ -63,6 +63,15 @@ var Solution;
         }
     }
     Solution_1.Solution = Solution;
+    function isTrue(a) {
+        if (isValid(a) == false)
+            return false;
+        if (a.value instanceof atoms_1.GTems.LiteralBool) {
+            return a.value;
+        }
+        return true;
+    }
+    Solution_1.isTrue = isTrue;
     function isValid(a) {
         if (a.state == SolutionState.QTrue)
             return true;

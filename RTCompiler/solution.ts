@@ -72,7 +72,13 @@ export namespace Solution{
         }
     }
 
-
+    export function isTrue(a: Solution) {
+        if (isValid(a) ==false ) return false 
+        if (a.value instanceof GTems.LiteralBool){
+            return a.value
+        }
+        return true
+    }
     export function isValid(a: Solution) {
         if (a.state == SolutionState.QTrue) return true
         if (a.state == SolutionState.QCut) return true
@@ -245,7 +251,7 @@ export namespace Solution{
     }
 
 
-    export function bind(sol: Solution, x: GTems.GBase, y: GTems.GBase):Solution {
+    export function bind(sol: Solution, x: GTems.GBase, y: GTems.GBase) :Solution.Solution {
         if (isValid(sol) == false) return sol //nem tenta
 
         if (isArray(y)) throw new Error("array as term, use List")

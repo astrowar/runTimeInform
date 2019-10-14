@@ -1,18 +1,53 @@
+
+do opposite(norte,sul)
+do opposite(leste,oeste)
+do opposite(sul,norte)
+do opposite(oeste,leste)
+
+do direction(norte)
+do direction(sul)
+do direction(oeste)
+do direction(leste)
+
+do trad(apple)  => maça
+do trad(orange)  => laranja
+do trad(box)  => caixa
+
+
+unless repr($x) as $x
+do repr($x) =>   trad($x) 
+
+do main() as (pedro,likes,$y),  write("pedro gosta de [$y] \n")
+
+do fuit($x) as $x = {apple ; orange}
+
+do croute(sala , norte , jardim)
+do croute(sala , oeste , cozinha )
+do croute(cozinha , oeste , deposito )
+
+do porta(sala , jardim)
+
+do  route($x, $d, $y)  as   opposite($d,$d_opp), croute($y, $d_opp, $x )
+do  route($x, $d, $y)  as   croute($x, $d , $y )
+
+do saida($room) as route($room, $d, _) , $d
+
+do uu($Z , $r) as HT( $a,$t, $Z ),  member($a,$t ) , write("> $t "), u( $t, $rx ) , $rx = $r
+do uu($Z , $r) as HT( $a,$t, $Z ), not( member($a,$t ) ),write("< $t "), u( $t, $rx ) , append([$a] , $rx , $r)
+
+do u($Z , $r) as HT( $a,$t, $Z ),u( $t, $rx ), if( member($a,$t ) ) { write("< $a "), $rx = $r } else {write("> $a "),  append([$a] , $rx , $r) }
+
+unless u($x, $y) as $x = $y
+
+
+do qmain() as  $y = findall($x, route( $x , _, _ ) ) , u($y,$salas) , $salas
+do qmain() as  route( $x,$d,$y ) ,[$x,$d,$y ]
+do qmain() as $x = [1,2,3,5,4,5,3  ] , u($x,$r), $r
+do main() as if(true) write(" x "), write(" x2 ")  else write(" y "),write(" z ")
  
-const color as  primary_color($c), $c
-var  $current_mood as  sad
+do class(thing) 
+do class(container,thing)
 
 
- 
-
-do main() as   sad($c, $y ) , [$c,$y]
-
-do main() as  set( sad(alice,false))  
-do main() as  set( sad(bob,true)) 
-do main() as  set( sad(alice,true)) 
-do main() as  set( sad(alice,false))  
-do main() as  sad(bob, $x ) , $x
-
- 
 
  

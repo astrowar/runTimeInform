@@ -7,16 +7,16 @@ import { isUndefined } from "util";
 
 import { UTerm } from "./mterms";
 import { GTems } from "./atoms";
-import { Interp } from "./interp";
+import { Interp } from "./interp"
 import { MParse } from "./parse";
 
-
-type SGroup = string[];
+ 
+ 
 
 
 type ITerm = UTerm.ITerm
 var parseString = UTerm.parseString
-type MatchResult = UTerm.MatchResult
+ 
 var splitStringInput = UTerm.splitStringInput
  
 
@@ -77,9 +77,19 @@ namespace SyntaxParser {
         return arg_b
     }
 
-    function isValidAtomName(pname: ITerm[]): boolean {
+  
+    function isValidAtomName(pname: ITerm[]): boolean {        
         if (pname.length != 1) return false
         let pstr = (pname.map(function (t: ITerm) { return t.gettext(); })).join()
+        for (var c of pstr) {
+            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
+                return false
+            }
+        }
+        return true
+    }
+    function isValidAtomNameStr(pstr:  string): boolean {        
+        if (pstr.length < 1) return false 
         for (var c of pstr) {
             if (";.,()[]|&+-*/".indexOf(c) >= 0) {
                 return false
@@ -211,6 +221,30 @@ namespace SyntaxParser {
             new MParse.Matchfunctior("$funct (  )", funct_0),
             new MParse.Matchfunctior(" ( $A , $funct , $B )", funct_2),
             new MParse.Matchfunctior("$funct", funct_z)
+        ]
+        for (var vj of MParse.genPattens_i(args, basePathens)) { 
+            let pool = []
+            for (var vv of vj[1](vj[0])) {
+                if (isUndefined(vv) == false) {
+                    pool.push(vv)
+                }
+                else {
+                    pool = [] //um termo nao deu certo .. invalida toda sequencia
+                    break
+                }
+            } 
+            //alimanta saida dos termos
+            for (var [i, vv] of pool.entries()) yield vv
+            if (pool.length > 0) break 
+        }
+    }
+
+
+   
+    function* predDeclSet(args) {
+        let basePathens = [ 
+            new MParse.Matchfunctior("$funct ( $A )", funct_1), 
+            new MParse.Matchfunctior(" ( $A , $funct , $B )", funct_2)
         ]
         for (var vj of MParse.genPattens_i(args, basePathens)) { 
             let pool = []
@@ -396,6 +430,23 @@ namespace SyntaxParser {
         }
     }
 
+
+
+    function* expr_if_else(args_dict) {
+        let x: ITerm[] = args_dict["$X"]
+        let y: ITerm[] = args_dict["$Y"]
+        let z: ITerm[] = args_dict["$Z"]
+        for (var cx of codebodyMatch(x)) {
+            if (isUndefined(cx)) continue
+            for (var cy of codebodyMatch(y)) {
+                if (isUndefined(cy)) continue
+                for (var cz of codebodyMatch(z)) {
+                    if (isUndefined(cz)) continue
+                    yield new GTems.Functor("if_else", cx,cy,cz)
+                }
+            }
+        }
+    }
  
     function* expr_not(args_dict) {
         let x: ITerm[] = args_dict["$X"]
@@ -404,22 +455,22 @@ namespace SyntaxParser {
             yield new GTems.Functor("not", cx)
         }
     }
+   
 
+ 
     function* expr_set(args_dict) {        
-        for (var p_inner of predDecl(args_dict["$X"])) {
-            if (isUndefined(p_inner)) continue
-            yield new GTems.Functor("set", p_inner)
+        for (var px of predDeclSet(args_dict["$X"])) {
+            if (isUndefined(px)) continue
+            yield new GTems.Functor("set", px)
         }
     }
 
-    function* expr_unset(args_dict) {
-        for (var p_inner of predDecl(args_dict["$X"])) {
-            if (isUndefined(p_inner)) continue
-            yield new GTems.Functor("unset", p_inner)
+    function* expr_reset(args_dict) {        
+        for (var px of predDeclSet(args_dict["$X"])) {
+            if (isUndefined(px)) continue
+            yield new GTems.Functor("reset", px)
         }
     }
-
-
 
     function* expr_plus(args_dict) {
         for (var x of expr_xy_operator("plus", args_dict)) yield x
@@ -575,7 +626,8 @@ namespace SyntaxParser {
             {
                 all_str.push(xx.gettext() )
             }
-            yield new GTems.Atom(all_str.join(" "))  
+            let atm_name = all_str.join(" ")
+            if (isValidAtomNameStr(atm_name)) yield new GTems.Atom(atm_name)  
         }
     }
 
@@ -611,11 +663,10 @@ namespace SyntaxParser {
             new MParse.Matchfunctior("$X / $Y", expr_DIV),
             new MParse.Matchfunctior("$X % $Y", expr_MOD),
             
-            
+            new MParse.Matchfunctior("if ( $X  ) $Y else $Z", expr_if_else),
             new MParse.Matchfunctior("not ( $X  )", expr_not),
-            new MParse.Matchfunctior("set $X ", expr_set),
-            new MParse.Matchfunctior("unset $X ", expr_unset),
-
+            new MParse.Matchfunctior("set ( $X  )", expr_set),
+            new MParse.Matchfunctior("reset ( $X  )", expr_reset),
             new MParse.Matchfunctior("$funct (   )", expr_funct_0),
             new MParse.Matchfunctior("$funct ( $args )", expr_funct),
             new MParse.Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),
@@ -850,28 +901,28 @@ namespace SyntaxParser {
 
         let basePathens = [
 
-            new MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
+           // new MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
             new MParse.Matchfunctior("do $X = > $Y ", syntax_xy_direct),
           
 
 
-            new MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
+           // new MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
             new MParse.Matchfunctior("do -  $X as $Y ", syntax_xy_low),
             new MParse.Matchfunctior("do -  $X  ", syntax_x_low),
 
-            new MParse.Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
+           // new MParse.Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
             new MParse.Matchfunctior("do +  $X as $Y ", syntax_xy_high),
             new MParse.Matchfunctior("do +  $X  ", syntax_x_high),
 
-            new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+          //  new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             new MParse.Matchfunctior("do  $X  ", syntax_x),
 
-            new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
+           // new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             new MParse.Matchfunctior("do  $X  ", syntax_x),
 
-            new MParse.Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
+          //  new MParse.Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
             new MParse.Matchfunctior("unless  $X as $Y ", unless_xy),
             new MParse.Matchfunctior("unless  $X  ", unless_x), 
 
@@ -881,7 +932,7 @@ namespace SyntaxParser {
             new MParse.Matchfunctior("let  $X as $Y ", let_xy), 
             new MParse.Matchfunctior("understand   $X as $Y ", understand_xy), 
 
-            new MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
+         //   new MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
             new MParse.Matchfunctior("before  $X as  $Y ", before_xy),
             new MParse.Matchfunctior("before  $X ", before_x),
 
