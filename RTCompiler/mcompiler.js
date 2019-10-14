@@ -388,6 +388,20 @@ var SyntaxParser;
             yield new atoms_1.GTems.Functor("not", cx);
         }
     }
+    function* expr_set(args_dict) {
+        for (var p_inner of predDecl(args_dict["$X"])) {
+            if (util_1.isUndefined(p_inner))
+                continue;
+            yield new atoms_1.GTems.Functor("set", p_inner);
+        }
+    }
+    function* expr_unset(args_dict) {
+        for (var p_inner of predDecl(args_dict["$X"])) {
+            if (util_1.isUndefined(p_inner))
+                continue;
+            yield new atoms_1.GTems.Functor("unset", p_inner);
+        }
+    }
     function* expr_plus(args_dict) {
         for (var x of expr_xy_operator("plus", args_dict))
             yield x;
@@ -557,6 +571,8 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("$X / $Y", expr_DIV),
             new parse_1.MParse.Matchfunctior("$X % $Y", expr_MOD),
             new parse_1.MParse.Matchfunctior("not ( $X  )", expr_not),
+            new parse_1.MParse.Matchfunctior("set $X ", expr_set),
+            new parse_1.MParse.Matchfunctior("unset $X ", expr_unset),
             new parse_1.MParse.Matchfunctior("$funct (   )", expr_funct_0),
             new parse_1.MParse.Matchfunctior("$funct ( $args )", expr_funct),
             new parse_1.MParse.Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),

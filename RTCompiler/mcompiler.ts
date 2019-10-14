@@ -405,6 +405,20 @@ namespace SyntaxParser {
         }
     }
 
+    function* expr_set(args_dict) {        
+        for (var p_inner of predDecl(args_dict["$X"])) {
+            if (isUndefined(p_inner)) continue
+            yield new GTems.Functor("set", p_inner)
+        }
+    }
+
+    function* expr_unset(args_dict) {
+        for (var p_inner of predDecl(args_dict["$X"])) {
+            if (isUndefined(p_inner)) continue
+            yield new GTems.Functor("unset", p_inner)
+        }
+    }
+
 
 
     function* expr_plus(args_dict) {
@@ -599,6 +613,9 @@ namespace SyntaxParser {
             
             
             new MParse.Matchfunctior("not ( $X  )", expr_not),
+            new MParse.Matchfunctior("set $X ", expr_set),
+            new MParse.Matchfunctior("unset $X ", expr_unset),
+
             new MParse.Matchfunctior("$funct (   )", expr_funct_0),
             new MParse.Matchfunctior("$funct ( $args )", expr_funct),
             new MParse.Matchfunctior("( $a1 , $funct , $a2  )", expr_funct_m),

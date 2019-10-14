@@ -245,7 +245,7 @@ export namespace Solution{
     }
 
 
-    export function bind(sol: Solution, x: GTems.GBase, y: GTems.GBase) {
+    export function bind(sol: Solution, x: GTems.GBase, y: GTems.GBase):Solution {
         if (isValid(sol) == false) return sol //nem tenta
 
         if (isArray(y)) throw new Error("array as term, use List")
