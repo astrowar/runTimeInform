@@ -795,8 +795,9 @@ var SyntaxParser;
             if (xcode[i] == "/" && i < n - 1)
                 if (xcode[i + 1] == "/") {
                     // pula para o fim da linha  
-                    while (xcode[i] !== "\n" && i < n)
+                    while (xcode[i + 1] !== "\n" && i < n - 1) {
                         i++;
+                    }
                     continue;
                 }
             if (xcode[i] == "\n")
@@ -813,20 +814,24 @@ var SyntaxParser;
                 return undefined; //error
             if (xcode[i] == "\n") {
                 if (p == 0) {
-                    if (xc.length > 0)
+                    if (xc.length > 0) {
                         xcs.push(new LineCode(xc, i, lc));
+                    }
                     xc = "";
                 }
                 else {
-                    xc = xc + " \n ";
+                    // xc = xc + " \n "
                 }
             }
             else {
-                xc = xc + xcode[i];
+                if ((xcode[i] !== "\n") && (xcode[i] !== "\r")) {
+                    xc = xc + xcode[i];
+                }
             }
         }
-        if (xc.length > 0)
+        if (xc.length > 0) {
             xcs.push(new LineCode(xc, i, lc));
+        }
         return xcs;
     }
     function isEmptyLine(x) {
@@ -899,87 +904,6 @@ var SyntaxParser;
     }
     SyntaxParser.MatchSyntaxGoal = MatchSyntaxGoal;
 })(SyntaxParser || (SyntaxParser = {}));
-let ancode = `
-do lit($r),Room($r) as true if contains($r,$d), lit($d)
-do class(Thing).
-do class(Room).
-do Thing(  book).
-do Localtion(  book) as limbo
-do Room(limbo).
-
-//condicao default de todas as salas
-do lit(Room) as false.    
- 
-do lit(flashlight) as on(flashlight)
-do on(flashlight) as state(flashlight, on)
-do state(flashlight, on|off) 
-do desc(flashlight) as "an flashligh,usefull for lit "
-
-`;
-let rulecodes = ` 
-do Thing($obj),concealed($obj) | visible($obj) as true
-
-      do  concealed($obj) as false if discovered($obj)
-      do  concealed($obj) as true if carried($obj,$person),wear($person,something),small($obj)
-      do  concealed($obj) as false  
-      do  look($obj) as {
-          print("Message");
-          score := score + 1
-      }
-//understand "flash" or "light" as flashlight. 
-do alias("flash","flashlight").
-do alias("light","flashlight") .
-
-do alias("the flashlight",flashlight).
-do state(flashlight,lit|unlit).
-
-do state(flashlight) as unlit.
-
-do action(finding).
-do command("find [something]") as finding.
-
-carry_out  finding(flashlight) as { 
-    if location(player)==location(flashlight) {
-       move( flashlight, player)
-       now( flashlight, lit)
-       say("You grope around in the darkness, find the flashlight and turn it back on.") 
-       action_stop()
-     }
-
-before going(south,Lighted Area) as {
-    say "you need to take the flashlight before traveling into the dark.";
-    action_stop()
-   }  if location(player)!=location(flashlight)  
-`;
-let prices = `
-
-    do price_contents($obj) as {  $contents = findall($x, inside($x ,$obj)) ,  maplist( price, $contents, $prices ) , sum($prices)   }  if container($obj)
-
-    const price_teasure as 10
-    const price_to_clean as 2
-
-    do- price($obj) as 0
-    do price($obj) as price_teasure if Teasure(obj)    
-    do price($obj) as { price($obj) + price_contents($obj)  }  if Container($obj)
-    do price($obj) as { price($obj) - price_to_clean }  if dirt($obj)
-    do+ price($obj) as {  max( 0 , price($obj) )  } 
-    
-unless r($x,$y,$c) as r($x,$z,$c1),r($z,$y,$c2), $c = - 1
-do r( a,b,1).
-do r( b,c,1).
-do r( c,d,2).
-do r( d,f,1).
-do r( a,e,5).
-do r( e,f,5).
-
-    `;
-let simple = `
- 
- 
-
- 
-
-`;
 function processScript(src) {
     let ctx = new interp_1.Interp.Context();
     SyntaxParser.MatchSyntaxDecl(src, (x, y, z, prio) => { return ctx.addPredicateFunc(x, y, z, prio); });
@@ -987,7 +911,7 @@ function processScript(src) {
 }
 var fs = require('fs');
 let ctx = undefined;
-let script_filename = 'script.txt';
+let script_filename = 'unit_test.txt';
 if (fs.existsSync(script_filename)) {
     var s = fs.readFileSync(script_filename, 'utf8');
     ctx = processScript(s);
@@ -996,6 +920,7 @@ else {
     throw "Script " + script_filename + " File Not found";
 }
 ctx.init();
+//SyntaxParser.MatchSyntaxGoal(" init( ) ", (x) => {  ctx.all_query(x).map((s ) => { return s.toString() }), { depth: null } })
 SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
 console.log('end');
 //# sourceMappingURL=mcompiler.js.map

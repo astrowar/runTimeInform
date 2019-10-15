@@ -1,4 +1,6 @@
  
+
+//define as direcoes
 do opposite(norte,sul)
 do opposite(leste,oeste)
 do opposite(sul,norte)
@@ -10,7 +12,7 @@ do direction(oeste)
 do direction(leste)
 
 
-  
+//salas  
 do room(comando)
 do room(corredor_norte)
 do room(corredor_centro)
@@ -23,34 +25,34 @@ do room(exterior_centro)
 do room(exterior_sul)
 do room(reator)
 
- 
+ //conecçoes
 do croute(corredor_norte  , norte , comando)
 do croute(corredor_centro  , norte , corredor_norte)
 do croute(corredor_sul  , norte , corredor_centro)
 do croute(reator  , norte , corredor_sul)
-
  
 do croute(exterior_sul , norte , exterior_centro )
 do croute(exterior_centro , norte , exterior_norte )
-
  
 do croute(corredor_centro , oeste , gabine_auxiliar )
 do croute(corredor_sul , oeste , camara )
 do croute(corredor_norte , oeste , gabine_comandante )
-
  
 do croute(camara , oeste , exterior_sul )
 
-var $location as gabine_auxiliar
 
+
+//variaveis globais
+var $location as gabine_auxiliar
 var $location_table as [[chave, gabine_auxiliar ], [botao, reator ] ]
  
+
+ //define as representacoes de cada atom
 do repr(reator)  as "a sala do reator"
 do repr(comando)  as "a sala de comando"
 do repr(camara)  as "a camara de descompressao"
 do repr(gabine_comandante)  as "a gabine do comandante"
 do repr(gabine_auxiliar)  as "a gabine do auxiliar de comando"
-
 
 do repr(corredor_norte)  as "o corredor da proa"
 do repr(corredor_centro)  as "o corredor central"
@@ -60,7 +62,25 @@ do repr(exterior_norte)  as "o exterior da proa"
 do repr(exterior_centro)  as "o exterior centro"
 do repr(exterior_sul)  as "o exterior da popa "
 
+do repr(exterior_sul)  as "o exterior da popa "
 
+do repr(chave) as "a chave"
+//some experimental things
+
+do instace_obj( $x) as  class($x,_), not(class(_,$x)) 
+do state_def ( device , enable_status, $x) as  $x = on;off
+do state_def ( room , iluminacao_value, $x) as  $x = lighted ; dark 
+                                   // cada atom da classe recebe entao um predicado do tipo state_value(corredor, s64736846 , lighted ) 
+
+do change( $r , $new  ) as state_value($r,$state,$value),state_def(_,$state,$new ), unset( state_value($r, $state, _ ) ),set( state_value($r, $state, $new ) ) 
+do state($r,$val) as state_value($r, _, $val )
+
+//inicia as variaveis de estado
+do init() as instace_obj($x), classOf($x , $cc ), write("$x -> $cc  \n"), state_def($cc,$s,$value ), set( state_value($x, $s, $value ) ) 
+do ($x , is , $value) as  state_value($x , _ ,$value )
+
+
+//logica
 do route($x, $d, $y)  as   opposite($d,$d_opp), croute($y, $d_opp, $x )
 do route($x, $d, $y)  as   croute($x, $d , $y )
 do saida($room) as route($room, $d, _) , $d
@@ -99,9 +119,14 @@ do class(container,thing)
 do class(button,thing) 
 do class(button,device) 
 do class(pulsador, button)
+do class($x,room) as room($x) 
 
-do is($x,$c) => class($x,$ci) , class($ci,$c) 
-do is($x,$c) => class($x,$c) 
+do classOf($x,$c) as class($x,$c) 
+do classOf($x,$c) as class($x,$ci),class($ci,$c)
+ 
+
+
+do is($x,$c) as class($x,$c) 
 
 do delete([], _ , [] ) 
 do delete($x, $e , $xs ) =>  HT($h,$t,$x ) ,  if ( $e == $h ) {  delete( $t, $e, $xs)  } else {   delete( $t, $e, $ts) ,append([$h], $ts, $xs )   }
@@ -123,10 +148,10 @@ do set_location($x, $where ) as delete($location_table, [$x,_] , $Lc ), append( 
 
 do in_possesion($x) as location($x, player)
 
-do taking($x) as write("unable to taken\n")
-do taking($x) as location($x,$location), set_location($x,player ) , write("taken\n")
+do taking($x) as write("não é possivel pegar\n")
+do taking($x) as location($x,$location), set_location($x,player ) , write("peguei\n")
 do taking($x) as in_possesion($x), write("ja possui\n")  
-do taking($x) as fixed($x), write("cant take, is fixed \n") 
+do taking($x) as fixed($x), write("nao consigo pegar, está fixo\n") 
 
 do action_get($x)  => taking($x),endTurn()
 
@@ -141,7 +166,14 @@ unless cmd($s) as write("nao entendi \n")
 do cmd($s) as parse($s)
 
 do main() as  cmd("pega botao") 
-do main() as  cmd("pega chave")  
-do main() as  location($x,$c) , [$x , $c]
 do main() as  cmd("pega chave") 
-do main() as  location($x,$c) ,  [$x , $c]
+ 
+do main() as  cmd("pega chave") 
+ 
+do main () as change(exterior_sul ,dark )
+do main() as (pulsador,is,$x) , $x
+do main () as   write("\n") 
+do main () as instace_obj($x),write("\n #$x : ") , ($x,is,$v) , write(" $v ") 
+ 
+
+ 

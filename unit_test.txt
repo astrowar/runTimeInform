@@ -1,0 +1,94 @@
+ 
+ 
+do room(comando)
+do room(reator)
+do room(exterior)
+do room(camara)
+
+do croute(comando  , oeste , camara) 
+do croute( camara  , oeste , exterior)
+do croute(reator  , norte , comando)
+do route($x, $d, $y)  as   opposite($d,$d_opp), croute($y, $d_opp, $x )
+do route($x, $d, $y)  as   croute($x, $d , $y )
+
+do repr(nave)  as "a nave"
+do repr(exterior)  as "o espaço"
+do repr(outter_space)  as "o espaço"
+ 
+
+do repr(reator)  as "a sala do reator"
+do repr(comando)  as "a sala de comando"
+do repr(exterior)  as "o exterior da nave"
+do repr(camara)  as "a camara de descompressão" 
+
+do class($x,room) as room($x) 
+do classOf($x,$c) as class($x,$c) 
+do classOf($x,$c) as class($x,$ci),class($ci,$c)
+
+do instace_obj( $x) as  class($x,_), not(class(_,$x)) 
+
+do property_def(room, region , nave ) 
+
+do state_def(thing, wearable,  $w ) as $w ={ true; false }
+do state_def( device , enable_status, $x) as  $x ={ on;off }
+do state_def( room , iluminacao_value, $x) as  $x = {  dark ;lighted} 
+                                   // cada atom da classe recebe entao um predicado do tipo state_value(corredor, s64736846 , lighted ) 
+
+
+do change( $r , $new  ) as state_value($r,$state,$value),state_def(_,$state,$new ), unset( state_value($r, $state, _ ) ),set( state_value($r, $state, $new ) ) 
+do state($r,$val) as state_value($r, _, $val )
+
+
+ 
+
+//inicia as variaveis de estado
+do init() as instace_obj($x),classOf($x,$cc), last(state_def($cc,$s,$value)), set( state_value($x, $s, $value ) ) 
+do ($x , is , $value) as  state_value($x , _ ,$value )
+
+//define as propriedades do objetos
+             //eh um objeto final , determina a classe  obtem as propriedades daquela classe ,        ainda nao tem valor definido    adiciona uma clausla para essa instancia  
+do init() as {  instace_obj($x), 
+                classOf($x , $cc ), 
+                property_def($cc , $pname ,$default_value ), 
+                not(apply($pname ,$x, _ ) ) ,    
+                set( $pname , [$x,  $default_value] )  
+                }
+
+
+do change($r, $pname, $new) as apply($pname ,$r, _ ), not(apply($pname ,$r, $new )), unset( $pname, [$r, _ ] ),set( $pname ,[ $r, $new ] ) 
+ 
+ do region(exterior , outter_space )
+
+
+do junt("a o" , "ao")
+do junt("a a" , "à")
+
+do junt("do o" , "do")
+do junt("do a" , "da")
+
+do junt("de o" , "do")
+do junt("de a" , "da")
+do junt("de um" , "dum")
+do junt("de uma" , "duma")
+
+
+do junt("em o", "no")
+do junt("em a", "na") 
+do junt("em um", "num")
+do junt("em uma", "numa") 
+
+do junt("por o", "pelo")
+do junt("por a", "pela")
+ 
+unless junta_artigos($s,$sx ) as $s = $sx 
+do junta_artigos($s,$sx) as   match($s,"$x $a $y"),  junt($a,$b),    junta_artigos($x,$xx),junta_artigos($y,$yy),   $sx = expand("$xx $b $yy") 
+
+
+do write_pt ( $s ) => junta_artigos($s,$sx), write($sx)
+
+
+do main() as region($x, $z ), write_pt( expand("$x está em $z \n") )
+do main() as change(reator,region, outter_space), write_pt( expand("\n\n")) 
+do main() as region($x ,  $z ), write_pt(expand("a região de $x é $z \n") )
+ 
+ 

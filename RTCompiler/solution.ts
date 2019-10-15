@@ -284,7 +284,14 @@ export namespace Solution{
             }
         }
 
-
+        if (x instanceof GTems.LiteralStr) {
+            if (y instanceof GTems.LiteralStr) {
+                if (x.value === y.value)
+                    return sol
+                else
+                    return new Solution(SolutionState.QFalse, GTems.atom_false(), {})
+            }
+        }
 
         if (x instanceof GTems.LiteralBool) {
             if (y instanceof GTems.LiteralBool) {

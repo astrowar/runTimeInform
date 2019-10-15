@@ -251,6 +251,14 @@ var Solution;
                 return sol_n;
             }
         }
+        if (x instanceof atoms_1.GTems.LiteralStr) {
+            if (y instanceof atoms_1.GTems.LiteralStr) {
+                if (x.value === y.value)
+                    return sol;
+                else
+                    return new Solution(SolutionState.QFalse, atoms_1.GTems.atom_false(), {});
+            }
+        }
         if (x instanceof atoms_1.GTems.LiteralBool) {
             if (y instanceof atoms_1.GTems.LiteralBool) {
                 if (x.value == y.value)

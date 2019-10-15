@@ -298,6 +298,7 @@ var Interp;
             this.predicades = [];
             this.understands = [];
             this.cons_atoms = [];
+            this.init_entries = [];
             this.predicades_id = 1;
             this.writebuffer = "";
             this.warringbuffer = [];
@@ -334,9 +335,16 @@ var Interp;
                 this.var_atoms[i].value = computed;
             }
         }
+        init_pred() {
+            //let n = this.init_entries.length
+            let sol = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+            let stk = new QueryStack();
+            for (var e of this.query_ar0(stk, sol, "init")) { }
+        }
         init() {
             this.init_const();
             this.init_var();
+            this.init_pred();
         }
         addPredicateFunc(p, code, condition, p_options) {
             if (p instanceof atoms_1.GTems.LiteralStr)
@@ -351,9 +359,9 @@ var Interp;
                 //if (opt == "var")   return this.addVarFunc( p,code ,condition, p_options)
             }
             for (var [i, opt] of p_options.entries()) {
-                if (opt == "lowp")
+                if (opt == "lowP")
                     p_priority = p_priority - 10000;
-                if (opt == "highp")
+                if (opt == "highP")
                     p_priority = p_priority + 10000;
             }
             let unique_name = p.name + this.predicades_id.toString();
@@ -365,6 +373,11 @@ var Interp;
                     pred_actual.set(PredicateKind.DIRECT);
             }
             pred_actual.set(PredicateKind.STATIC);
+            if (pred_actual.entry.name == "init") {
+                //this.init_entries.push(pred_actual )
+                //this.init_entries = this.init_entries.sort((a, b) => { return predicateEntryOrder(a, b) })
+                //return true;
+            }
             this.predicades.unshift(pred_actual);
             this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
             return true;
@@ -373,9 +386,9 @@ var Interp;
             this.predicades_id++;
             let p_priority = 0;
             for (var [i, opt] of p_options.entries()) {
-                if (opt == "lowp")
+                if (opt == "lowP")
                     p_priority = p_priority - 10000;
-                if (opt == "highp")
+                if (opt == "highP")
                     p_priority = p_priority + 10000;
             }
             let unique_name = "understand" + this.predicades_id.toString();
@@ -526,7 +539,7 @@ var Interp;
             sol4.var_values = new_vars;
             return sol4;
         }
-        expandVar(sol, varname) {
+        expandVar(stk, sol, varname) {
             let vx = sol.var_values[varname];
             if (util_1.isUndefined(vx)) {
                 for (var [vi, ve] of this.var_atoms.entries()) {
@@ -538,6 +551,31 @@ var Interp;
             }
             return vx;
         }
+        expandExpr(stk, sol, vcontetns) {
+            if (vcontetns instanceof atoms_1.GTems.LiteralStr)
+                return vcontetns.value;
+            let buffer = "";
+            if (vcontetns instanceof atoms_1.GTems.Variable) {
+                let vv = this.expandVar(stk, sol, vcontetns.name);
+                if (util_1.isUndefined(vv))
+                    return "$" + vcontetns.name;
+                return this.expandExpr(stk, sol, vv);
+            }
+            for (var qrep of this.query_ar1(stk, sol, "repr", vcontetns)) {
+                if (qrep instanceof solution_1.Solution.Solution) {
+                    if (solution_1.Solution.isValid(qrep)) {
+                        return this.expandExpr(stk, sol, qrep.value);
+                    }
+                }
+            }
+            if (vcontetns instanceof atoms_1.GTems.GList) {
+                let xrep = vcontetns.items.map((element) => {
+                    return this.expandExpr(stk, sol, element);
+                });
+                return xrep.join(", ");
+            }
+            return vcontetns.toString();
+        }
         expandString(stk, sol, x) {
             let buffer = "";
             let i = -1;
@@ -547,7 +585,8 @@ var Interp;
                 if (x[i] == "$") {
                     let j = findEndAtom(x, i);
                     let varname = x.substr(i + 1, j - i - 1);
-                    let vx = this.expandVar(sol, varname);
+                    let local_var = new atoms_1.GTems.Variable(varname);
+                    let vx = this.expandExpr(stk, sol, local_var);
                     buffer += (util_1.isUndefined(vx) ? "$" + varname : vx.toString());
                     i = j - 1;
                     continue;
@@ -562,16 +601,19 @@ var Interp;
                         vcontetns = new atoms_1.GTems.Variable(contents.substr(1));
                     else
                         vcontetns = new atoms_1.GTems.Atom(contents);
-                    for (var qrep of this.query_ar1(stk, sol, "repr", vcontetns)) {
-                        if (qrep instanceof solution_1.Solution.Solution) {
-                            if (solution_1.Solution.isValid(qrep)) {
-                                // let next_exp = this.expandString( stk, qrep,qrep.value.toString()  )
-                                // buffer +=  next_exp
-                                buffer += qrep.value.toString();
-                                break;
-                            }
-                        }
-                    }
+                    buffer += this.expandExpr(stk, sol, vcontetns);
+                    // for (var qrep of this.query_ar1(stk, sol, "repr", vcontetns)) {
+                    //     if (qrep instanceof Solution.Solution) {
+                    //         if (Solution.isValid(qrep)) {
+                    //             if (qrep.value instanceof GTems.GList){ 
+                    //             }                                
+                    //             else { 
+                    //                  buffer += qrep.value.toString()
+                    //             }
+                    //             break
+                    //         }
+                    //     }
+                    // }
                     continue;
                 }
                 buffer += x[i];
@@ -1274,6 +1316,15 @@ var Interp;
             let arg1 = _arg1;
             let arg2 = _arg2;
             let arg3 = _arg3;
+            if (f_name == "apply") {
+                if (_arg1 instanceof atoms_1.GTems.Atom) {
+                    let f = new atoms_1.GTems.Functor(_arg1.name, _arg2, _arg3);
+                    for (var r of this.evaluate_query(stk, sol, f)) {
+                        yield r;
+                    }
+                }
+                return;
+            }
             if (f_name == "append") {
                 for (var ssk of this.buildIn_append(stk, sol, arg1, arg2, arg3))
                     yield ssk;
@@ -1414,35 +1465,81 @@ var Interp;
             return;
         }
         *query_ar2_inner(stk, sol, attribSelect, f_name, _arg1, _arg2) {
-            if (f_name == "findall") {
-                let results = [];
-                if (_arg1 instanceof atoms_1.GTems.Variable) {
-                    for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
-                        if (solution_1.Solution.isValid(x2)) {
-                            results.push(x2.var_values[_arg1.name]);
+            if (attribSelect == PredicateKind.NOMINAL) {
+                if (f_name == "set") {
+                    let _predName = undefined;
+                    if (_arg1 instanceof atoms_1.GTems.Atom)
+                        _predName = _arg1.name;
+                    if (_arg1 instanceof atoms_1.GTems.Variable) {
+                        for (var var1 of this.evaluate_query(stk, sol, _arg1)) {
+                            if (solution_1.Solution.isValid(var1))
+                                if (var1.value instanceof atoms_1.GTems.Atom) {
+                                    _predName = var1.value.name;
+                                    break;
+                                }
                         }
                     }
+                    if ((util_1.isUndefined(_predName) == false) && _arg2 instanceof atoms_1.GTems.GList) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg2.items)) {
+                            let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            this.setPredicate(stk, s, _predName, av);
+                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        }
+                        return;
+                    }
                 }
-                var cpy = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, new atoms_1.GTems.GList(results), {});
-                yield cpy;
-                return;
-            }
-            if (f_name == "assign") {
-                if (_arg1 instanceof atoms_1.GTems.Variable) {
-                    for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
-                        if (solution_1.Solution.isValid(x2)) {
-                            if (this.setGlobalVariableValue(_arg1.name, x2.value)) {
-                                yield sol;
-                            }
-                            else {
-                                var cpy = solution_1.Solution.fuse(new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {}), sol);
-                                cpy.var_values[_arg1.name] = x2.value;
-                                yield cpy;
+                if (f_name == "unset") {
+                    let _predName = undefined;
+                    if (_arg1 instanceof atoms_1.GTems.Atom)
+                        _predName = _arg1.name;
+                    if (_arg1 instanceof atoms_1.GTems.Variable) {
+                        for (var var1 of this.evaluate_query(stk, sol, _arg1)) {
+                            if (solution_1.Solution.isValid(var1))
+                                if (var1.value instanceof atoms_1.GTems.Atom) {
+                                    _predName = var1.value.name;
+                                    break;
+                                }
+                        }
+                    }
+                    if ((util_1.isUndefined(_predName) == false) && _arg2 instanceof atoms_1.GTems.GList) {
+                        for (var av of this.eval_rec(stk, sol, [], _arg2.items)) {
+                            let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            this.unsetPredicate(stk, s, _predName, av);
+                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        }
+                        return;
+                    }
+                }
+                if (f_name == "findall") {
+                    let results = [];
+                    if (_arg1 instanceof atoms_1.GTems.Variable) {
+                        for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
+                            if (solution_1.Solution.isValid(x2)) {
+                                results.push(x2.var_values[_arg1.name]);
                             }
                         }
                     }
+                    var cpy = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, new atoms_1.GTems.GList(results), {});
+                    yield cpy;
+                    return;
                 }
-                return;
+                if (f_name == "assign") {
+                    if (_arg1 instanceof atoms_1.GTems.Variable) {
+                        for (var x2 of this.evaluate_query(stk, sol, _arg2)) {
+                            if (solution_1.Solution.isValid(x2)) {
+                                if (this.setGlobalVariableValue(_arg1.name, x2.value)) {
+                                    yield sol;
+                                }
+                                else {
+                                    var cpy = solution_1.Solution.fuse(new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {}), sol);
+                                    cpy.var_values[_arg1.name] = x2.value;
+                                    yield cpy;
+                                }
+                            }
+                        }
+                    }
+                    return;
+                }
             }
             for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                 if (solution_1.Solution.isValid(x1)) {
@@ -1465,6 +1562,15 @@ var Interp;
                 _arg2 = _arg2[0];
             let arg1 = _arg1;
             let arg2 = _arg2;
+            if (f_name == "apply") {
+                if (_arg1 instanceof atoms_1.GTems.Atom) {
+                    let f = new atoms_1.GTems.Functor(_arg1.name, _arg2);
+                    for (var r of this.evaluate_query(stk, sol, f)) {
+                        yield r;
+                    }
+                }
+                return;
+            }
             if (f_name == "unify") {
                 var bvar = this.bind(sol, arg1, arg2);
                 yield bvar;
@@ -1714,17 +1820,6 @@ var Interp;
                         return;
                     }
                 }
-                if (f_name == "set") {
-                    //let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                    if (_arg1 instanceof atoms_1.GTems.Functor) {
-                        for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
-                            let s = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                            this.setPredicate(stk, s, _arg1.name, av);
-                            yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                        }
-                        return;
-                    }
-                }
                 if (f_name == "unset") {
                     if (_arg1 instanceof atoms_1.GTems.Functor) {
                         for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
@@ -1734,6 +1829,27 @@ var Interp;
                         }
                         return;
                     }
+                }
+                if (f_name == "once") {
+                    for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
+                        if (solution_1.Solution.isTrue(x1)) {
+                            yield solution_1.Solution.fuse(sol, x1);
+                            break;
+                        }
+                    }
+                    return;
+                }
+                if (f_name == "last") {
+                    let last = undefined;
+                    for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
+                        if (solution_1.Solution.isTrue(x1)) {
+                            last = solution_1.Solution.fuse(sol, x1);
+                        }
+                    }
+                    if (util_1.isUndefined(last) == false) {
+                        yield last;
+                    }
+                    return;
                 }
                 if (f_name == "repeat") {
                     while (true) {
@@ -1805,6 +1921,12 @@ var Interp;
             else
                 arg1 = atoms_1.GTems.atom_false();
             let query_satisf = false;
+            if (f_name == "write") {
+                if (arg1 instanceof atoms_1.GTems.LiteralStr) {
+                    let exp_literal = this.expandString(stk, sol, arg1.value);
+                    arg1 = new atoms_1.GTems.LiteralStr(exp_literal);
+                }
+            }
             if (f_name == "is_atom") {
                 if (arg1 instanceof atoms_1.GTems.Atom) {
                     yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
@@ -1850,16 +1972,6 @@ var Interp;
                 }
                 return;
             }
-            if (f_name == "write") {
-                if (arg1 instanceof atoms_1.GTems.LiteralStr) {
-                    this.write(stk, sol, arg1.value);
-                }
-                else {
-                    this.write(stk, sol, arg1.toString());
-                }
-                yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                return;
-            }
             let hasFound = false;
             let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; }); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
             for (var [i, p] of pnamed.entries()) {
@@ -1901,7 +2013,7 @@ var Interp;
                         }
                     }
                     if (cond_satisf == false)
-                        continue; // nem testa o corpo .. proximo termo
+                        continue; // nem testa o corpo .. proximo termo 
                     for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
                         if (solution_1.Solution.isValid(sol_next_inner) == false)
                             continue;
@@ -1957,14 +2069,25 @@ var Interp;
                 }
             }
             //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
+            if (f_name == "write") {
+                hasFound = true;
+                if (arg1 instanceof atoms_1.GTems.LiteralStr) {
+                    this.write(stk, sol, arg1.value);
+                }
+                else {
+                    this.write(stk, sol, arg1.toString());
+                }
+                yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                return;
+            }
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
                     this.warring("Predicate " + f_name + "/1  not found ");
                 }
         }
         write(stk, sol, arg0) {
-            let msg = this.expandString(stk, sol, arg0);
-            this.writebuffer = this.writebuffer + msg;
+            //let msg = this.expandString(stk, sol, arg0) 
+            this.writebuffer = this.writebuffer + arg0;
         }
         warring(arg0) {
             this.warringbuffer.push(arg0);
