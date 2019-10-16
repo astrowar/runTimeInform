@@ -46,7 +46,10 @@ export namespace MParse{
                     else {
                         //verifica se ja existe e se é a mesma coisa
                         let term_old = q[varname]
-                        if (isSameTermArray(term_old, sxxx[1]) == false ) { matchIsValid =false; break }
+                        if (isSameTermArray(term_old, sxxx[1]) == false )
+                         { 
+                              matchIsValid =false; break 
+                         }
                     } 
                     //yield sxxx
                 }

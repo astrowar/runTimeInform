@@ -6,20 +6,10 @@ var GTems;
     class GBase {
     }
     GTems.GBase = GBase;
-    function isValidAtomName(pstr) {
-        for (var c of pstr) {
-            if (";.,()[]|&\n\r".indexOf(c) >= 0) {
-                return false;
-            }
-        }
-        if (pstr[0] == "$")
-            return false;
-        return true;
-    }
     class Functor extends GBase {
         constructor(predname, ...arg1) {
             super();
-            if (isValidAtomName(predname) == false) {
+            if (Atom.isValidAtomName(predname) == false) {
                 throw new Error('name invalid for pred ' + predname);
             }
             this.name = predname;
@@ -41,12 +31,22 @@ var GTems;
             if (atm_name == "false") {
                 throw new Error(' invalid atom name ');
             }
-            if (isValidAtomName(atm_name) == false) {
+            if (Atom.isValidAtomName(atm_name) == false) {
                 throw new Error('name invalid for atom ' + atm_name);
             }
             if (atm_name[0] == "$")
                 throw new Error('name invalid for atom ' + atm_name);
             this.name = atm_name;
+        }
+        static isValidAtomName(pstr) {
+            for (var c of pstr) {
+                if ("=;.,()[]{}|&\n\r".indexOf(c) >= 0) {
+                    return false;
+                }
+            }
+            if (pstr[0] == "$")
+                return false;
+            return true;
         }
         toString() { return this.name; }
         clone() { return new Atom(this.name); }
@@ -55,7 +55,7 @@ var GTems;
     class Variable extends GBase {
         constructor(v_name) {
             super();
-            if (isValidAtomName(v_name) == false) {
+            if (Atom.isValidAtomName(v_name) == false) {
                 throw new Error('name invalid for pred ' + v_name);
             }
             this.name = v_name;
@@ -68,7 +68,7 @@ var GTems;
         constructor(v_name) {
             super();
             this.binded = undefined;
-            if (isValidAtomName(v_name) == false) {
+            if (Atom.isValidAtomName(v_name) == false) {
                 throw new Error('name invalid for pred ' + v_name);
             }
             this.name = v_name;
@@ -86,13 +86,14 @@ var GTems;
     }
     GTems.GValue = GValue;
     class LiteralStr extends GValue {
-        constructor(lit_str) {
+        constructor(lit_str, _expanded = false) {
             super();
+            this.expanded = false;
             this.value = lit_str;
+            this.expanded = _expanded;
         }
-        //toString(): string { return '"' + this.value + '"' }
         toString() { return this.value; }
-        clone() { return new LiteralStr(this.value); }
+        clone() { return new LiteralStr(this.value, this.expanded); }
     }
     GTems.LiteralStr = LiteralStr;
     class LiteralNumber extends GValue {

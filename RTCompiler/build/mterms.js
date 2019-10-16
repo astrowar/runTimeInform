@@ -76,12 +76,19 @@ var UTerm;
         //return new MatchResult(true)
         if (m instanceof MatchStringLiteral) {
             if (x.length == 1) {
-                return isMatchStr(x[0].gettext().trim(), m.str.trim());
+                if (x[0] instanceof TermCode) {
+                    return isMatchStr(x[0].gettext().trim(), m.str.trim());
+                }
             }
         }
         if (m instanceof MatchVar) {
             let mv = m;
-            if (isBalanced(x)) {
+            if (x instanceof TermCode) {
+                if (isBalanced(x)) {
+                    return new MatchResult(true, [new VarAssigned(m.vname, x)]);
+                }
+            }
+            else {
                 return new MatchResult(true, [new VarAssigned(m.vname, x)]);
             }
         }
@@ -96,6 +103,8 @@ var UTerm;
         let bq = 0;
         let cq = 0;
         for (var [i, x] of h.entries()) {
+            if (x.isLiteral())
+                continue;
             if (x.gettext() == "(")
                 eq = eq + 1;
             if (x.gettext() == ")")
@@ -204,7 +213,9 @@ var UTerm;
                 if (isNaN(n) == false)
                     return new atoms_1.GTems.LiteralNumber(n);
             }
-            return new atoms_1.GTems.Atom(this.txt);
+            if (atoms_1.GTems.Atom.isValidAtomName(this.txt))
+                return new atoms_1.GTems.Atom(this.txt);
+            return undefined;
         }
     }
     class TermLiteral extends ITerm {
@@ -246,8 +257,8 @@ var UTerm;
             }
             if (state == CODEST.SLITERAL) {
                 if (c == '"') {
-                    if (acc.length > 0)
-                        terms.push(new TermLiteral(acc));
+                    //if (acc.length > 0) 
+                    terms.push(new TermLiteral(acc));
                     acc = "";
                     state = CODEST.SCODE;
                     continue;

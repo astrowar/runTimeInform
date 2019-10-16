@@ -8,23 +8,14 @@ export namespace GTems {
     }
 
 
-    function isValidAtomName(pstr: string): boolean { 
-        for (var c of pstr) {
-            if (";.,()[]|&\n\r".indexOf(c) >= 0) {
-                return false
-            }
-        }
-        if (pstr[0] =="$") return false
-        return true
-    }
-
+ 
 
     export class Functor extends GBase {
         public name: string
         public args: GBase[]         
         constructor(predname: string, ...arg1) {
             super()
-            if (isValidAtomName(predname) == false) {
+            if (Atom.isValidAtomName(predname) == false) {
                 throw new Error('name invalid for pred ' + predname);
             } 
                 this.name = predname;
@@ -50,13 +41,25 @@ export namespace GTems {
                 throw new Error(' invalid atom name '  ); 
             }
 
-            if (isValidAtomName(atm_name) == false) {
+            if (Atom.isValidAtomName(atm_name) == false) {
                 throw new Error('name invalid for atom ' + atm_name);
             }
             if(atm_name[0] =="$")  throw new Error('name invalid for atom ' + atm_name);
 
             this.name = atm_name;
         }
+
+        static isValidAtomName(pstr: string): boolean { 
+            for (var c of pstr) {
+                if ("=;.,()[]{}|&\n\r".indexOf(c) >= 0) {
+                    return false
+                }
+            }
+            if (pstr[0] =="$") return false
+            return true
+        }
+
+
         toString(): string { return this.name       }
         clone( ) { return new Atom(this.name) }
     }
@@ -66,7 +69,7 @@ export namespace GTems {
         constructor(v_name: string) { 
             super()
              
-            if (isValidAtomName(v_name) == false) { 
+            if (Atom.isValidAtomName(v_name) == false) { 
                 throw new Error('name invalid for pred ' + v_name);
             } 
             this.name = v_name;
@@ -81,7 +84,7 @@ export namespace GTems {
 
         constructor(v_name: string) {
             super()
-            if (isValidAtomName(v_name) == false) {
+            if (Atom.isValidAtomName(v_name) == false) {
                 throw new Error('name invalid for pred ' + v_name);
             }
             this.name = v_name;
@@ -102,13 +105,14 @@ export namespace GTems {
 
     export class LiteralStr extends GValue{
         public value: string
-        constructor(lit_str: string) {
+        public expanded =false 
+        constructor(lit_str: string, _expanded:boolean = false ) {
             super()
             this.value = lit_str;
-        }
-        //toString(): string { return '"' + this.value + '"' }
+            this.expanded = _expanded
+        } 
         toString(): string { return  this.value  }
-        clone( ) { return new LiteralStr(this.value) }
+        clone( ) { return new LiteralStr(this.value, this.expanded) }
     }
 
     export class LiteralNumber extends GValue{

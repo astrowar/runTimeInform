@@ -129,9 +129,15 @@ var Interp;
             this.arg = arg;
         }
     }
+    class DiscardItem {
+        constructor(unique_name) {
+            this.unique_name = unique_name;
+        }
+    }
     class QueryStack {
         constructor() {
             this.callStack = [];
+            this.discardStack = [];
         }
         contains(unique_name, arg0 = undefined, arg1 = undefined, arg2 = undefined, arg3 = undefined) {
             for (var [i, cv] of this.callStack.entries()) {
@@ -174,10 +180,19 @@ var Interp;
             }
             return false;
         }
+        contains_discard(unique_name) {
+            for (var [i, cv] of this.discardStack.entries()) {
+                if (cv.unique_name === unique_name)
+                    return true;
+            }
+            return false;
+        }
         clone() {
             let s = new QueryStack();
             for (var [i, cv] of this.callStack.entries())
                 s.callStack.push(cv);
+            for (var [i, dv] of this.discardStack.entries())
+                s.discardStack.push(dv);
             return s;
         }
         pushCall(unique_name, arg0 = undefined, arg1 = undefined, arg2 = undefined, arg3 = undefined) {
@@ -201,6 +216,12 @@ var Interp;
             let c = new CallItem(unique_name, argv);
             let s = this.clone();
             s.callStack.push(c);
+            return s;
+        }
+        pushDiscard(unique_name) {
+            let c = new DiscardItem(unique_name);
+            let s = this.clone();
+            s.discardStack.push(c);
             return s;
         }
     }
@@ -642,6 +663,10 @@ var Interp;
                         }
                     }
                     for (var qz of this.evaluate_query(stk, solution_1.Solution.fuse(sol, qsol), q2)) {
+                        if (qz.state == solution_1.Solution.SolutionState.QFail) {
+                            yield qz;
+                            return;
+                        }
                         if (solution_1.Solution.isValid(qz)) {
                             let fz = solution_1.Solution.fuse(qq, qz);
                             yield fz;
@@ -786,7 +811,14 @@ var Interp;
                 return;
             }
             if (q instanceof atoms_1.GTems.LiteralStr) {
-                yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, q, {});
+                if (q.expanded == false) {
+                    let sxValue = this.expandString(stk, sol, q.value);
+                    let r = new atoms_1.GTems.LiteralStr(sxValue, true);
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, r, {});
+                }
+                else {
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, q, {});
+                }
                 return;
             }
             if (q instanceof atoms_1.GTems.GList) {
@@ -797,6 +829,11 @@ var Interp;
         }
         *evaluate_query(stk, sol, code) {
             if (code instanceof atoms_1.GTems.Atom) {
+                if (code.name == "discard") {
+                    stk.discardStack.push(new DiscardItem(stk.callStack[stk.callStack.length - 1].unique_name));
+                    yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, new atoms_1.GTems.LiteralBool(true), {});
+                    return;
+                }
                 if (code.name == "true") {
                     yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, new atoms_1.GTems.LiteralBool(true), {});
                     return;
@@ -857,6 +894,10 @@ var Interp;
                 let fsol = solution_1.Solution.fuse(sol, qin);
                 if (solution_1.Solution.isValid(fsol)) {
                     yield fsol;
+                }
+                if (fsol.state == solution_1.Solution.SolutionState.QFail) {
+                    yield fsol;
+                    return;
                 }
             }
         }
@@ -1345,6 +1386,8 @@ var Interp;
             let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; });
             for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf)  continue
+                if (stk.contains_discard(p.unique_name))
+                    continue;
                 if (p.entry.name != f_name)
                     continue;
                 let pp = p.entry;
@@ -1403,6 +1446,10 @@ var Interp;
                     if (solution_1.Solution.isValid(sol_next) == false)
                         continue;
                     for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                            yield sol_next_inner;
+                            return;
+                        }
                         if (solution_1.Solution.isValid(sol_next_inner) == false)
                             continue;
                         sol_next_inner = solution_1.Solution.fuse(sol_next_inner, sol_next);
@@ -1646,25 +1693,25 @@ var Interp;
                     yield ss82;
                 return;
             }
-            if (f_name == ">") {
+            if (f_name == "GREATER") {
                 //yield this.buildIn_gt(stk,sol, arg1, arg2)
                 for (var ss7 of this.buildIn_gt(stk, sol, arg1, arg2))
                     yield ss7;
                 return;
             }
-            if (f_name == "<") {
+            if (f_name == "LESS") {
                 //yield this.buildIn_lt(stk,sol, arg1, arg2)
                 for (var ss5 of this.buildIn_lt(stk, sol, arg1, arg2))
                     yield ss5;
                 return;
             }
-            if (f_name == ">=") {
+            if (f_name == "GREATEREQUAL") {
                 //yield this.buildIn_gt(stk,sol, arg1, arg2)
                 for (var ss7 of this.buildIn_gte(stk, sol, arg1, arg2))
                     yield ss7;
                 return;
             }
-            if (f_name == "<=") {
+            if (f_name == "LESSEQUAL") {
                 //yield this.buildIn_lt(stk,sol, arg1, arg2)
                 for (var ss5 of this.buildIn_lte(stk, sol, arg1, arg2))
                     yield ss5;
@@ -1710,6 +1757,8 @@ var Interp;
             let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; });
             for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf)  continue
+                if (stk.contains_discard(p.unique_name))
+                    continue;
                 if (p.entry.name != f_name)
                     continue;
                 let pp = p.entry;
@@ -1754,6 +1803,10 @@ var Interp;
                     if (solution_1.Solution.isValid(sol_next) == false)
                         continue;
                     for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                            yield sol_next_inner;
+                            return;
+                        }
                         if (solution_1.Solution.isValid(sol_next_inner) == false)
                             continue;
                         let sol_n = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
@@ -1921,12 +1974,6 @@ var Interp;
             else
                 arg1 = atoms_1.GTems.atom_false();
             let query_satisf = false;
-            if (f_name == "write") {
-                if (arg1 instanceof atoms_1.GTems.LiteralStr) {
-                    let exp_literal = this.expandString(stk, sol, arg1.value);
-                    arg1 = new atoms_1.GTems.LiteralStr(exp_literal);
-                }
-            }
             if (f_name == "is_atom") {
                 if (arg1 instanceof atoms_1.GTems.Atom) {
                     yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
@@ -1975,6 +2022,8 @@ var Interp;
             let hasFound = false;
             let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; }); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
             for (var [i, p] of pnamed.entries()) {
+                if (stk.contains_discard(p.unique_name))
+                    continue;
                 // if (query_satisf) continue
                 if (p.entry.name != f_name)
                     continue;
@@ -2015,6 +2064,10 @@ var Interp;
                     if (cond_satisf == false)
                         continue; // nem testa o corpo .. proximo termo 
                     for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                            yield sol_next_inner;
+                            return;
+                        }
                         if (solution_1.Solution.isValid(sol_next_inner) == false)
                             continue;
                         if (this.isVar(arg1) || util_1.isUndefined(arg1)) //arg1 eh uma variavel ? bind para o resultado 
@@ -2086,7 +2139,6 @@ var Interp;
                 }
         }
         write(stk, sol, arg0) {
-            //let msg = this.expandString(stk, sol, arg0) 
             this.writebuffer = this.writebuffer + arg0;
         }
         warring(arg0) {
@@ -2125,6 +2177,8 @@ var Interp;
                     continue;
                 let pp = p.entry;
                 if (pp instanceof atoms_1.GTems.Functor) {
+                    if (stk.contains_discard(p.unique_name))
+                        continue;
                     if (p.has(attribSelect) == false)
                         continue; //UNLESS
                     if (pp.args.length != 0)
@@ -2154,6 +2208,10 @@ var Interp;
                     if (cond_satisf == false)
                         continue; // nem testa o corpo .. proximo termo
                     for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                            yield sol_next_inner;
+                            return;
+                        }
                         if (solution_1.Solution.isValid(sol_next_inner) == false)
                             continue;
                         query_satisf = true;

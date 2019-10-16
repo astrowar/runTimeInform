@@ -1,5 +1,5 @@
  
- 
+
 do room(comando)
 do room(reator)
 do room(exterior)
@@ -84,11 +84,57 @@ unless junta_artigos($s,$sx ) as $s = $sx
 do junta_artigos($s,$sx) as   match($s,"$x $a $y"),  junt($a,$b),    junta_artigos($x,$xx),junta_artigos($y,$yy),   $sx = expand("$xx $b $yy") 
 
 
-do write_pt ( $s ) => junta_artigos($s,$sx), write($sx)
+do write_pt ( $s ) as   write($s)
+do write_pt ( $s ) => junta_artigos($s,$sx), discard, write_pt($sx)
+
+do main() as region($x, $z ), write_pt(  "$x está em $z \n" )
+do main() as change(reator,region, outter_space),  write_pt(  "\n") 
+do main() as region($x ,  $z ), write_pt( "a região de $x é $z \n" )
 
 
-do main() as region($x, $z ), write_pt( expand("$x está em $z \n") )
-do main() as change(reator,region, outter_space), write_pt( expand("\n\n")) 
-do main() as region($x ,  $z ), write_pt(expand("a região de $x é $z \n") )
+
+do p($z,$n) as  $n == 5 ,  write("$z \n")
+do p($z,$n) as  $n < 5 , $w = $z + {"0";"1"},  p($w,$n+1) 
+
+do conjug("revoltada", "revoltado", AQ0FS00)
+do conjug("revoltadas", "revoltado", AQ0FP00)
+do conjug("revoltadazinha", "revoltado", AQCFS00)
+do conjug("revoltadazinhas", "revoltado", AQCFP00)
+do conjug("revoltadazita", "revoltado", AQCFS00)
+do conjug("revoltadazitas", "revoltado", AQCFP00)
+do conjug("revoltado", "revoltado", AQ0MS00) 
+do conjug("revoltados", "revoltado", AQ0MP00)
+do conjug("revoltadozinho", "revoltado", AQCMS00)
+do conjug("revoltadozinhos", "revoltado", AQCMP00)
+do conjug("revoltadozito", "revoltado", AQCMS00)
+do conjug("revoltadozitos", "revoltado", AQCMP00)
+do conjug("revoltadíssima", "revoltado", AQSFS00)
+do conjug("revoltadíssimas", "revoltado", AQSFP00)
+do conjug("revoltadíssimo", "revoltado", AQSMS00)
+do conjug("revoltadíssimos", "revoltado", AQSMP00)
  
+
+do conjug("revolta","revolto", AQ0FS00)
+do conjug("revoltas","revolto", AQ0FP00)
+do conjug("revolto","revolto", AQ0MS00)
+do conjug("revoltos","revolto", AQ0MP00)
  
+do conjug("mar", "mar", NCMS000)
+do conjug("mares", "mar", NCMP000)
+do conjug("marzinho", "mar", NCMS00D)
+do conjug("marzinhos", "mar", NCMP00D)
+do conjug("marzito", "mar", NCMS00D)
+do conjug("marzitos", "mar", NCMP00D)
+
+do modo(plural,mas, $x) as $x={NCMP000;NCMP00D;NCMP00D}
+do modo(singular,mas, $x) as $x={NCMS000;NCMS00D;NCMS00D}
+
+do modo(plural,fem, $x) as $x = AQ0FP00
+do modo(plural,mas, $x) as $x = AQ0MP00
+
+do modo(singular,fem, $x) as $x =  AQ0FS00
+do modo(singular,mas, $x) as $x =  AQ0MS00 
+ 
+
+do ph($x) as p($x,0)
+do main() as conjug($revolto, "revolto",$xa) , modo($ps,$m,$xa), modo($ps,$m,$xb),  conjug($mar, "mar",$xb), write("o $mar esta $revolto \n")

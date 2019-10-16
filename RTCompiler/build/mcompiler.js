@@ -17,6 +17,9 @@ var SyntaxParser;
             return codeexpr[0];
         //aqui ..................esta o problema das EXP dentro das Expo
         let q = args.map(function (t) { return t.getGeneralTerm(); });
+        if (q.some(function (t, index, array) { return util_1.isUndefined(t); })) {
+            return undefined;
+        }
         return q;
     }
     function isBalanced(x) {
@@ -59,6 +62,8 @@ var SyntaxParser;
         let args_c = splitTerms(args, ",");
         for (var [i, ac] of args_c.entries()) {
             let rac = resolve_as(ac);
+            if (util_1.isUndefined(rac))
+                return undefined;
             arg_b.push(rac);
         }
         return arg_b;
@@ -67,24 +72,7 @@ var SyntaxParser;
         if (pname.length != 1)
             return false;
         let pstr = (pname.map(function (t) { return t.gettext(); })).join();
-        for (var c of pstr) {
-            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
-                return false;
-            }
-        }
-        return true;
-    }
-    function isValidAtomNameStr(pstr) {
-        if (pstr.length < 1)
-            return false;
-        for (var c of pstr) {
-            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
-                return false;
-            }
-        }
-        if (pstr[0] == "$")
-            return false;
-        return true;
+        return atoms_1.GTems.Atom.isValidAtomName(pstr);
     }
     function funct_resolve_2(pname, args, args2) {
         if (pname.length != 1)
@@ -464,19 +452,19 @@ var SyntaxParser;
             yield x;
     }
     function* expr_GT(args_dict) {
-        for (var x of expr_xy_operator(">", args_dict))
+        for (var x of expr_xy_operator("GREATER", args_dict))
             yield x;
     }
     function* expr_LT(args_dict) {
-        for (var x of expr_xy_operator("<", args_dict))
+        for (var x of expr_xy_operator("LESS", args_dict))
             yield x;
     }
     function* expr_GTE(args_dict) {
-        for (var x of expr_xy_operator(">=", args_dict))
+        for (var x of expr_xy_operator("GREATEREQUAL", args_dict))
             yield x;
     }
     function* expr_LTE(args_dict) {
-        for (var x of expr_xy_operator("<=", args_dict))
+        for (var x of expr_xy_operator("LESSEQUAL", args_dict))
             yield x;
     }
     function* expr_MUL(args_dict) {
@@ -598,7 +586,7 @@ var SyntaxParser;
                 all_str.push(xx.gettext());
             }
             let atm_name = all_str.join(" ");
-            if (isValidAtomNameStr(atm_name)) {
+            if (atoms_1.GTems.Atom.isValidAtomName(atm_name)) {
                 yield new atoms_1.GTems.Atom(atm_name);
             }
         }
@@ -790,6 +778,7 @@ var SyntaxParser;
         let xcs = [];
         let p = 0;
         let lc = 0;
+        let in_string = false;
         let comment = false;
         for (var i = 0; i < n; ++i) {
             if (xcode[i] == "/" && i < n - 1)
@@ -804,11 +793,19 @@ var SyntaxParser;
                 lc = lc + 1;
             if (xcode[i] == "\r")
                 continue;
-            if (xcode[i] == "{") {
-                p = p + 1;
+            if (xcode[i] == '"') {
+                if (in_string == false)
+                    in_string = true;
+                else
+                    in_string = false;
             }
-            if (xcode[i] == "}") {
-                p = p - 1;
+            if (in_string == false) {
+                if (xcode[i] == "{") {
+                    p = p + 1;
+                }
+                if (xcode[i] == "}") {
+                    p = p - 1;
+                }
             }
             if (p < 0)
                 return undefined; //error
@@ -842,6 +839,7 @@ var SyntaxParser;
     }
     function MatchSyntaxDecl(xcode, resolutionFunc) {
         let basePathens = [
+            new parse_1.MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             // new MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
             new parse_1.MParse.Matchfunctior("do $X = > $Y ", syntax_xy_direct),
             // new MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),

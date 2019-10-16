@@ -29,6 +29,9 @@ namespace SyntaxParser {
 
         //aqui ..................esta o problema das EXP dentro das Expo
         let q = args.map(function (t: ITerm) { return t.getGeneralTerm(); })
+        if (q.some(function (t , index, array) { return isUndefined(t) } )){ 
+            return undefined  
+        }
         return q;
     }
 
@@ -71,6 +74,7 @@ namespace SyntaxParser {
         let args_c = splitTerms(args, ",")
         for (var [i, ac] of args_c.entries()) {
             let rac = resolve_as(ac)
+            if ( isUndefined(rac) ) return undefined
             arg_b.push(rac)
         }
  
@@ -81,23 +85,10 @@ namespace SyntaxParser {
     function isValidAtomName(pname: ITerm[]): boolean {        
         if (pname.length != 1) return false
         let pstr = (pname.map(function (t: ITerm) { return t.gettext(); })).join()
-        for (var c of pstr) {
-            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
-                return false
-            }
-        }
-        return true
+        return GTems.Atom.isValidAtomName(pstr)
+        
     }
-    function isValidAtomNameStr(pstr:  string): boolean {        
-        if (pstr.length < 1) return false 
-        for (var c of pstr) {
-            if (";.,()[]|&+-*/".indexOf(c) >= 0) {
-                return false
-            }
-        }
-        if (pstr[0] == "$") return false 
-        return true
-    }
+  
 
     function funct_resolve_2(pname: ITerm[], args: ITerm[],args2: ITerm[]) {
         if (pname.length != 1) return undefined
@@ -392,7 +383,8 @@ namespace SyntaxParser {
     function* expr_inner(args_dict) {
         let pname: ITerm[] = args_dict["$X"]
         if (isUndefined(pname)) return undefined
-        for (var cy of codebodyMatch(pname)) yield cy
+        for (var cy of codebodyMatch(pname)) 
+           yield cy
     }
 
     function* expr_and(args_dict) {
@@ -481,17 +473,17 @@ namespace SyntaxParser {
     }
 
     function* expr_GT(args_dict) {
-        for (var x of expr_xy_operator(">", args_dict)) yield x
+        for (var x of expr_xy_operator("GREATER", args_dict)) yield x
     }
     function* expr_LT(args_dict) {
-        for (var x of expr_xy_operator("<", args_dict)) yield x
+        for (var x of expr_xy_operator("LESS", args_dict)) yield x
     }
 
     function* expr_GTE(args_dict) {
-        for (var x of expr_xy_operator(">=", args_dict)) yield x
+        for (var x of expr_xy_operator("GREATEREQUAL", args_dict)) yield x
     }
     function* expr_LTE(args_dict) {
-        for (var x of expr_xy_operator("<=", args_dict)) yield x
+        for (var x of expr_xy_operator("LESSEQUAL", args_dict)) yield x
     }
 
 
@@ -628,7 +620,7 @@ namespace SyntaxParser {
                 all_str.push(xx.gettext() )
             }
             let atm_name = all_str.join(" ")            
-            if (isValidAtomNameStr(atm_name)) 
+            if ( GTems.Atom.isValidAtomName(atm_name)) 
             { 
                 yield new GTems.Atom(atm_name)  
             }
@@ -650,6 +642,7 @@ namespace SyntaxParser {
             new MParse.Matchfunctior("$X ; $Y", expr_or),
             new MParse.Matchfunctior("$X = = $Y", expr_EQUAL),
             new MParse.Matchfunctior("$X : = $Y", expr_ASIGN),
+ 
             new MParse.Matchfunctior("$X ! = $Y", expr_NEQUAL),
             new MParse.Matchfunctior("$X = $Y", expr_UNIFY),
 
@@ -864,6 +857,7 @@ namespace SyntaxParser {
         let xcs: LineCode[] = []
         let p = 0;
         let lc =0 
+        let in_string = false
         let comment = false 
         for (var i = 0; i < n; ++i) {
             if (xcode[i] =="/" && i <n-1 ) if (xcode[i+1] == "/") { 
@@ -876,11 +870,17 @@ namespace SyntaxParser {
             if (xcode[i] == "\n") lc= lc+1
             if (xcode[i] == "\r") continue
 
-            if (xcode[i] == "{") {
-                p = p + 1
+            if (xcode[i] == '"') {
+                if (in_string == false )in_string = true 
+                else in_string = false 
             }
-            if (xcode[i] == "}") {
-                p = p - 1
+            if (in_string ==false ){
+                if (xcode[i] == "{") {
+                    p = p + 1
+                }
+                if (xcode[i] == "}") {
+                    p = p - 1
+                }
             }
             if (p < 0) return undefined //error
 
@@ -919,45 +919,35 @@ namespace SyntaxParser {
 
         let basePathens = [
 
+            new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
+
+
+
            // new MParse.Matchfunctior("do $X = > $Y if $Z", syntax_xyz_direct),
             new MParse.Matchfunctior("do $X = > $Y ", syntax_xy_direct),
-          
-
-
            // new MParse.Matchfunctior("do -  $X as $Y if $Z", syntax_xyz_low),
             new MParse.Matchfunctior("do -  $X as $Y ", syntax_xy_low),
             new MParse.Matchfunctior("do -  $X  ", syntax_x_low),
-
            // new MParse.Matchfunctior("do +  $X as $Y if $Z", syntax_xyz_high),
             new MParse.Matchfunctior("do +  $X as $Y ", syntax_xy_high),
             new MParse.Matchfunctior("do +  $X  ", syntax_x_high),
-
           //  new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             new MParse.Matchfunctior("do  $X  ", syntax_x),
-
            // new MParse.Matchfunctior("do  $X as $Y if $Z", syntax_xyz),
             new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
             new MParse.Matchfunctior("do  $X  ", syntax_x),
-
           //  new MParse.Matchfunctior("unless  $X as $Y if $Z", unless_xyz),
             new MParse.Matchfunctior("unless  $X as $Y ", unless_xy),
             new MParse.Matchfunctior("unless  $X  ", unless_x), 
-
             new MParse.Matchfunctior("do  $X  ?.", syntax_x),
-
-
             new MParse.Matchfunctior("let  $X as $Y ", let_xy), 
             new MParse.Matchfunctior("understand   $X as $Y ", understand_xy), 
-
          //   new MParse.Matchfunctior("before  $X as  $Y if $Z", before_xyz),
             new MParse.Matchfunctior("before  $X as  $Y ", before_xy),
             new MParse.Matchfunctior("before  $X ", before_x),
-
-
             new MParse.Matchfunctior("const  $X as  $Y ", const_xy),
             new MParse.Matchfunctior("var   $X as  $Y ", var_xy)
-
  
         ]
         let xlines = linesSplit(xcode)

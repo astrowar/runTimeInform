@@ -97,15 +97,22 @@ export namespace UTerm {
 
         if (m instanceof MatchStringLiteral) {
             if (x.length == 1) {
-               return isMatchStr( x[0].gettext().trim() , m.str.trim())
+               if  (x[0] instanceof TermCode) {
+                   return isMatchStr( x[0].gettext().trim() , m.str.trim())
+               }
             }
         }
 
         if (m instanceof MatchVar) {
             let mv: MatchVar = m as MatchVar
-            if (isBalanced(x)) {
-                return new MatchResult(true, [new VarAssigned(m.vname, x)])
-            }
+            if (x instanceof TermCode  ){
+                if (isBalanced(x)) {
+                      return new MatchResult(true, [new VarAssigned(m.vname, x)])
+                      }
+                }
+                else     {
+                    return new MatchResult(true, [new VarAssigned(m.vname, x)])
+                }
         }
 
         if (m instanceof MatchOptional) {
@@ -120,11 +127,14 @@ export namespace UTerm {
 
     function isBalanced(h: ITerm[]): boolean {
 
+
+        
         let eq = 0;
         let bq = 0
         let cq = 0
 
         for (var [i, x] of h.entries()) {
+            if (x.isLiteral()) continue
             if (x.gettext() == "(") eq = eq + 1;
             if (x.gettext() == ")") eq = eq - 1;
 
@@ -244,7 +254,8 @@ export namespace UTerm {
                 if (isNaN(n) == false) return new GTems.LiteralNumber(n)
             }
 
-            return new GTems.Atom(this.txt)
+            if (GTems.Atom.isValidAtomName(this.txt))        return new GTems.Atom(this.txt)
+            return undefined
         }
 
     }
@@ -285,7 +296,8 @@ export namespace UTerm {
             }
             if (state == CODEST.SLITERAL) {
                 if (c == '"') {
-                    if (acc.length > 0) terms.push(new TermLiteral(acc))
+                    //if (acc.length > 0) 
+                    terms.push(new TermLiteral(acc))
                     acc = ""
                     state = CODEST.SCODE
                     continue
