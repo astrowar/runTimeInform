@@ -919,6 +919,12 @@ else {
 }
 ctx.init();
 //SyntaxParser.MatchSyntaxGoal(" init( ) ", (x) => {  ctx.all_query(x).map((s ) => { return s.toString() }), { depth: null } })
-SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { console.dir(ctx.all_query(x).map((s) => { return s.toString(); }), { depth: null }); });
+SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => {
+    let qq = [];
+    for (var i = 0; i < 200; ++i) {
+        qq = ctx.all_query(x);
+    }
+    console.dir(qq.map((s) => { return s.toString(); }), { depth: null });
+});
 console.log('end');
 //# sourceMappingURL=mcompiler.js.map
