@@ -301,6 +301,9 @@ export namespace Interp {
 
 
 
+    interface IHashPred {
+        [name: string] : PredicateEntry[]
+    };   
 
     export class Context {
         
@@ -355,7 +358,7 @@ export namespace Interp {
         //predicades: GTems.Functor[] = []
         values: GTems.Atom[] = []
 
-        predicades: PredicateEntry[] = []
+        predicades: IHashPred = {}
         understands: UnderstandEntry[] = []
         cons_atoms: ConstEntry[] = []
         init_entries: PredicateEntry[] =[];
@@ -405,9 +408,9 @@ export namespace Interp {
                 //this.init_entries = this.init_entries.sort((a, b) => { return predicateEntryOrder(a, b) })
                 //return true;
             }
-
-            this.predicades.unshift(pred_actual)
-            this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b) })
+            if(isUndefined( this.predicades[pred_actual.entry.name])) this.predicades[pred_actual.entry.name] =[]
+            this.predicades[pred_actual.entry.name].unshift(pred_actual)
+            this.predicades[pred_actual.entry.name] =  this.predicades[pred_actual.entry.name].sort((a, b) => { return predicateEntryOrder(a, b) })
             return true
         }
 
@@ -452,7 +455,8 @@ export namespace Interp {
 
 
         existPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]){
-            for(var [i,p] of this.predicades.entries()){
+            if ( isUndefined(this.predicades[f_name])) return false 
+            for(var [i,p] of this.predicades[f_name].entries()){
                 if (p.entry instanceof GTems.Functor){
                 if (p.entry.name == f_name)
                 if ( av.length != p.entry.args.length) continue
@@ -482,13 +486,15 @@ export namespace Interp {
 
             pred_actual.set(PredicateKind.DYNAMIC);
             pred_actual.set(PredicateKind.NONDIRECT);
-            this.predicades.unshift(pred_actual)
-            this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b) })
+            if (isUndefined( this.predicades[f_name])) this.predicades[f_name] =[]
+            this.predicades[f_name].unshift(pred_actual)
+            this.predicades[f_name] = this.predicades[f_name].sort((a, b) => { return predicateEntryOrder(a, b) })
         }
 
         unsetPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {           
             let p_remove =[]
-            for(var [i,p] of this.predicades.entries()){
+            if ( isUndefined(this.predicades[f_name])) return   
+            for(var [i,p] of this.predicades[f_name].entries()){
                  if (p.entry instanceof GTems.Functor){
                  if (p.entry.name == f_name)
                  if (p.has(PredicateKind.STATIC)) continue //nao apaga predicados estaticos
@@ -507,7 +513,7 @@ export namespace Interp {
             }
             
             for(var [i,u] of p_remove.entries()){
-                this.predicades =this.predicades.filter(el => { return  el.unique_name  !== u; } )
+                this.predicades[f_name] =this.predicades[f_name].filter(el => { return  el.unique_name  !== u; } )
             }
 
   
@@ -1553,114 +1559,118 @@ export namespace Interp {
 
             let hasFound = false
             let query_satisf: Boolean = false
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name })
-            for (var [i, p] of pnamed.entries()) {
 
-                // if (query_satisf)  continue
-                if (stk.contains_discard(p.unique_name)) continue
+            if (f_name in this.predicades) {
+                let pnamed = this.predicades[f_name].filter(x => x.entry.name == f_name)
+                for (var [i, p] of pnamed.entries()) {
 
-                if (p.entry.name != f_name) continue
-                let pp = p.entry;
-                if (pp instanceof GTems.Functor) {
+                    // if (query_satisf)  continue
+                    if (stk.contains_discard(p.unique_name)) continue
 
-                    if (p.has(attribSelect) == false) continue; //UNLESS
+                    if (p.entry.name != f_name) continue
+                    let pp = p.entry;
+                    if (pp instanceof GTems.Functor) {
 
-                    hasFound = true
-                    if (pp.args.length != 3) continue
-                    let pa0 = pp.args[0]
-                    if (isArray(pa0)) pa0 = pa0[0]
+                        if (p.has(attribSelect) == false) continue; //UNLESS
 
-                    let pa1 = pp.args[1]
-                    if (isArray(pa1)) pa1 = pa1[0]
+                        hasFound = true
+                        if (pp.args.length != 3) continue
+                        let pa0 = pp.args[0]
+                        if (isArray(pa0)) pa0 = pa0[0]
 
-                    let pa2 = pp.args[2]
-                    if (isArray(pa2)) pa2 = pa2[0]
+                        let pa1 = pp.args[1]
+                        if (isArray(pa1)) pa1 = pa1[0]
 
-                    if (stk.contains(p.unique_name, arg1, arg2, arg3)) continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    let stk_next: QueryStack = stk.pushCall(p.unique_name, arg1, arg2, arg3)
+                        let pa2 = pp.args[2]
+                        if (isArray(pa2)) pa2 = pa2[0]
+
+                        if (stk.contains(p.unique_name, arg1, arg2, arg3)) continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                        let stk_next: QueryStack = stk.pushCall(p.unique_name, arg1, arg2, arg3)
 
 
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                    if (this.isVar(arg1) == false) { sol_next = this.bind(sol_next, pa0, arg1) }
-                    if (this.isVar(arg2) == false) { sol_next = this.bind(sol_next, pa1, arg2) }
-                    if (this.isVar(arg3) == false) { sol_next = this.bind(sol_next, pa2, arg3) }
+                        //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                        let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                        if (this.isVar(arg1) == false) { sol_next = this.bind(sol_next, pa0, arg1) }
+                        if (this.isVar(arg2) == false) { sol_next = this.bind(sol_next, pa1, arg2) }
+                        if (this.isVar(arg3) == false) { sol_next = this.bind(sol_next, pa2, arg3) }
 
-                    //same parameter 
-                    if (this.isVar(pa1) && this.isVar(pa2)) {
-                        if (pa1 instanceof GTems.Variable)
-                            if (pa2 instanceof GTems.Variable) {
-                                if (pa1.name == pa2.name) {
+                        //same parameter 
+                        if (this.isVar(pa1) && this.isVar(pa2)) {
+                            if (pa1 instanceof GTems.Variable)
+                                if (pa2 instanceof GTems.Variable) {
+                                    if (pa1.name == pa2.name) {
 
+                                    }
+                                }
+                        }
+
+                        // testa a condicao de ativacao do predicado
+                        let cond_satisf = true
+                        if (isUndefined(p.condition) == false) {
+                            cond_satisf = false
+                            //testa a condicao
+                            for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
+                                if (Solution.isValid(sol_cond)) {
+                                    cond_satisf = true
+                                    sol_next = Solution.fuse(sol_next, sol_cond)
+                                    break //apenas a primeira true ja serve
                                 }
                             }
-                    }
+                        }
+                        if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo
 
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true
-                    if (isUndefined(p.condition) == false) {
-                        cond_satisf = false
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (Solution.isValid(sol_cond)) {
-                                cond_satisf = true
-                                sol_next = Solution.fuse(sol_next, sol_cond)
-                                break //apenas a primeira true ja serve
+
+
+
+                        if (Solution.isValid(sol_next) == false) continue
+                        for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                            if (sol_next_inner.state == Solution.SolutionState.QFail) {
+                                yield sol_next_inner
+                                return
                             }
-                        }
-                    }
-                    if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo
+
+                            if (Solution.isValid(sol_next_inner) == false) continue
+                            sol_next_inner = Solution.fuse(sol_next_inner, sol_next);
+
+                            let sol_n = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                            sol_n = Solution.fuse(sol, sol_n) //just a copy 
+                            if (this.isVar(arg1))  //arg1 eh uma variavel ? bind para o resultado 
+                            {
+                                let v_ret = Solution.getValue(sol_next_inner, pa0)
+                                if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg1)
+                            }
+                            if (Solution.isValid(sol_n) == false) continue
+                            if (this.isVar(arg2))  //arg1 eh uma variavel ? bind para o resultado 
+                            {
+                                let v_ret = Solution.getValue(sol_next_inner, pa1)
+                                if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg2)
+                            }
+                            if (Solution.isValid(sol_n) == false) continue
+
+                            if (this.isVar(arg3))  //arg1 eh uma variavel ? bind para o resultado 
+                            {
+                                let v_ret = Solution.getValue(sol_next_inner, pa2)
+                                if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg3)
+                            }
+                            if (Solution.isValid(sol_n) == false) continue
 
 
 
-
-                    if (Solution.isValid(sol_next) == false) continue
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == Solution.SolutionState.QFail) {
-                            yield sol_next_inner
-                            return 
-                        }
-
-                        if (Solution.isValid(sol_next_inner) == false) continue
-                        sol_next_inner = Solution.fuse(sol_next_inner, sol_next);
-
-                        let sol_n = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                        sol_n = Solution.fuse(sol, sol_n) //just a copy 
-                        if (this.isVar(arg1))  //arg1 eh uma variavel ? bind para o resultado 
-                        {
-                            let v_ret = Solution.getValue(sol_next_inner, pa0)
-                            if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg1)
-                        }
-                        if (Solution.isValid(sol_n) == false) continue
-                        if (this.isVar(arg2))  //arg1 eh uma variavel ? bind para o resultado 
-                        {
-                            let v_ret = Solution.getValue(sol_next_inner, pa1)
-                            if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg2)
-                        }
-                        if (Solution.isValid(sol_n) == false) continue
-
-                        if (this.isVar(arg3))  //arg1 eh uma variavel ? bind para o resultado 
-                        {
-                            let v_ret = Solution.getValue(sol_next_inner, pa2)
-                            if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg3)
-                        }
-                        if (Solution.isValid(sol_n) == false) continue
-
-
-
-                        query_satisf = true
-                        let ret = sol_n.add_value(sol_next_inner)
-                        if (ret.state == Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                            ret.state = Solution.SolutionState.QTrue;
-                            yield ret
-                            return
-                        }
-                        else {
-                            yield ret
+                            query_satisf = true
+                            let ret = sol_n.add_value(sol_next_inner)
+                            if (ret.state == Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
+                                ret.state = Solution.SolutionState.QTrue;
+                                yield ret
+                                return
+                            }
+                            else {
+                                yield ret
+                            }
                         }
                     }
                 }
             }
+
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
                     this.warring("Predicate " + f_name + "/3  not found ")
@@ -1957,7 +1967,9 @@ export namespace Interp {
 
             let hasFound = false
             let query_satisf: Boolean = false
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name })
+
+            if (f_name in this.predicades ){
+            let pnamed = this.predicades[ f_name ].filter(x=>x.entry.name == f_name)
 
             for (var [i, p] of pnamed.entries()) {
 
@@ -2042,6 +2054,7 @@ export namespace Interp {
                     }
                 }
             }
+        }
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
                     this.warring("Predicate " + f_name + "/2  not found ")
@@ -2270,7 +2283,8 @@ export namespace Interp {
  
 
             let hasFound = false
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name }) //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
+            if (f_name in this.predicades){
+            let pnamed = this.predicades[f_name].filter( x=> x.entry.name == f_name) //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
             for (var [i, p] of pnamed.entries()) {
 
                 if (stk.contains_discard(p.unique_name)) continue
@@ -2376,6 +2390,7 @@ export namespace Interp {
                     }
                 }
             }
+            }
 
             //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
 
@@ -2439,7 +2454,9 @@ export namespace Interp {
             }
 
             let hasFound = false
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name }) //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
+
+            if (f_name in this.predicades){
+            let pnamed = this.predicades[f_name].filter( x=> x.entry.name == f_name) //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
 
             for (var [i, p] of pnamed.entries()) {
                 // if (query_satisf) continue
@@ -2494,7 +2511,7 @@ export namespace Interp {
                     }
                 }
             }
-
+           }
             //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
 
             if (attribSelect != PredicateKind.UNLESS)

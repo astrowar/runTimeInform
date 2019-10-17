@@ -312,11 +312,12 @@ var Interp;
         }
         return 0;
     }
+    ;
     class Context {
         constructor() {
             //predicades: GTems.Functor[] = []
             this.values = [];
-            this.predicades = [];
+            this.predicades = {};
             this.understands = [];
             this.cons_atoms = [];
             this.init_entries = [];
@@ -399,8 +400,10 @@ var Interp;
                 //this.init_entries = this.init_entries.sort((a, b) => { return predicateEntryOrder(a, b) })
                 //return true;
             }
-            this.predicades.unshift(pred_actual);
-            this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
+            if (util_1.isUndefined(this.predicades[pred_actual.entry.name]))
+                this.predicades[pred_actual.entry.name] = [];
+            this.predicades[pred_actual.entry.name].unshift(pred_actual);
+            this.predicades[pred_actual.entry.name] = this.predicades[pred_actual.entry.name].sort((a, b) => { return predicateEntryOrder(a, b); });
             return true;
         }
         addUnderstandFunc(pmatch, code, condition, p_options) {
@@ -436,7 +439,9 @@ var Interp;
             return true;
         }
         existPredicate(stk, s, f_name, av) {
-            for (var [i, p] of this.predicades.entries()) {
+            if (util_1.isUndefined(this.predicades[f_name]))
+                return false;
+            for (var [i, p] of this.predicades[f_name].entries()) {
                 if (p.entry instanceof atoms_1.GTems.Functor) {
                     if (p.entry.name == f_name)
                         if (av.length != p.entry.args.length)
@@ -470,12 +475,16 @@ var Interp;
             let pred_actual = new PredicateEntry(unique_name, p, atoms_1.GTems.atom_true(), undefined, 0 + this.predicades_id);
             pred_actual.set(PredicateKind.DYNAMIC);
             pred_actual.set(PredicateKind.NONDIRECT);
-            this.predicades.unshift(pred_actual);
-            this.predicades = this.predicades.sort((a, b) => { return predicateEntryOrder(a, b); });
+            if (util_1.isUndefined(this.predicades[f_name]))
+                this.predicades[f_name] = [];
+            this.predicades[f_name].unshift(pred_actual);
+            this.predicades[f_name] = this.predicades[f_name].sort((a, b) => { return predicateEntryOrder(a, b); });
         }
         unsetPredicate(stk, s, f_name, av) {
             let p_remove = [];
-            for (var [i, p] of this.predicades.entries()) {
+            if (util_1.isUndefined(this.predicades[f_name]))
+                return;
+            for (var [i, p] of this.predicades[f_name].entries()) {
                 if (p.entry instanceof atoms_1.GTems.Functor) {
                     if (p.entry.name == f_name)
                         if (p.has(PredicateKind.STATIC))
@@ -501,7 +510,7 @@ var Interp;
                 }
             }
             for (var [i, u] of p_remove.entries()) {
-                this.predicades = this.predicades.filter(el => { return el.unique_name !== u; });
+                this.predicades[f_name] = this.predicades[f_name].filter(el => { return el.unique_name !== u; });
             }
         }
         isList(v) {
@@ -1383,111 +1392,113 @@ var Interp;
             }
             let hasFound = false;
             let query_satisf = false;
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; });
-            for (var [i, p] of pnamed.entries()) {
-                // if (query_satisf)  continue
-                if (stk.contains_discard(p.unique_name))
-                    continue;
-                if (p.entry.name != f_name)
-                    continue;
-                let pp = p.entry;
-                if (pp instanceof atoms_1.GTems.Functor) {
-                    if (p.has(attribSelect) == false)
-                        continue; //UNLESS
-                    hasFound = true;
-                    if (pp.args.length != 3)
+            if (f_name in this.predicades) {
+                let pnamed = this.predicades[f_name].filter(x => x.entry.name == f_name);
+                for (var [i, p] of pnamed.entries()) {
+                    // if (query_satisf)  continue
+                    if (stk.contains_discard(p.unique_name))
                         continue;
-                    let pa0 = pp.args[0];
-                    if (util_1.isArray(pa0))
-                        pa0 = pa0[0];
-                    let pa1 = pp.args[1];
-                    if (util_1.isArray(pa1))
-                        pa1 = pa1[0];
-                    let pa2 = pp.args[2];
-                    if (util_1.isArray(pa2))
-                        pa2 = pa2[0];
-                    if (stk.contains(p.unique_name, arg1, arg2, arg3))
-                        continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    let stk_next = stk.pushCall(p.unique_name, arg1, arg2, arg3);
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                    if (this.isVar(arg1) == false) {
-                        sol_next = this.bind(sol_next, pa0, arg1);
-                    }
-                    if (this.isVar(arg2) == false) {
-                        sol_next = this.bind(sol_next, pa1, arg2);
-                    }
-                    if (this.isVar(arg3) == false) {
-                        sol_next = this.bind(sol_next, pa2, arg3);
-                    }
-                    //same parameter 
-                    if (this.isVar(pa1) && this.isVar(pa2)) {
-                        if (pa1 instanceof atoms_1.GTems.Variable)
-                            if (pa2 instanceof atoms_1.GTems.Variable) {
-                                if (pa1.name == pa2.name) {
+                    if (p.entry.name != f_name)
+                        continue;
+                    let pp = p.entry;
+                    if (pp instanceof atoms_1.GTems.Functor) {
+                        if (p.has(attribSelect) == false)
+                            continue; //UNLESS
+                        hasFound = true;
+                        if (pp.args.length != 3)
+                            continue;
+                        let pa0 = pp.args[0];
+                        if (util_1.isArray(pa0))
+                            pa0 = pa0[0];
+                        let pa1 = pp.args[1];
+                        if (util_1.isArray(pa1))
+                            pa1 = pa1[0];
+                        let pa2 = pp.args[2];
+                        if (util_1.isArray(pa2))
+                            pa2 = pa2[0];
+                        if (stk.contains(p.unique_name, arg1, arg2, arg3))
+                            continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                        let stk_next = stk.pushCall(p.unique_name, arg1, arg2, arg3);
+                        //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                        let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        if (this.isVar(arg1) == false) {
+                            sol_next = this.bind(sol_next, pa0, arg1);
+                        }
+                        if (this.isVar(arg2) == false) {
+                            sol_next = this.bind(sol_next, pa1, arg2);
+                        }
+                        if (this.isVar(arg3) == false) {
+                            sol_next = this.bind(sol_next, pa2, arg3);
+                        }
+                        //same parameter 
+                        if (this.isVar(pa1) && this.isVar(pa2)) {
+                            if (pa1 instanceof atoms_1.GTems.Variable)
+                                if (pa2 instanceof atoms_1.GTems.Variable) {
+                                    if (pa1.name == pa2.name) {
+                                    }
+                                }
+                        }
+                        // testa a condicao de ativacao do predicado
+                        let cond_satisf = true;
+                        if (util_1.isUndefined(p.condition) == false) {
+                            cond_satisf = false;
+                            //testa a condicao
+                            for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
+                                if (solution_1.Solution.isValid(sol_cond)) {
+                                    cond_satisf = true;
+                                    sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
+                                    break; //apenas a primeira true ja serve
                                 }
                             }
-                    }
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true;
-                    if (util_1.isUndefined(p.condition) == false) {
-                        cond_satisf = false;
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (solution_1.Solution.isValid(sol_cond)) {
-                                cond_satisf = true;
-                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
-                                break; //apenas a primeira true ja serve
+                        }
+                        if (cond_satisf == false)
+                            continue; // nem testa o corpo .. proximo termo
+                        if (solution_1.Solution.isValid(sol_next) == false)
+                            continue;
+                        for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                            if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                                yield sol_next_inner;
+                                return;
                             }
-                        }
-                    }
-                    if (cond_satisf == false)
-                        continue; // nem testa o corpo .. proximo termo
-                    if (solution_1.Solution.isValid(sol_next) == false)
-                        continue;
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
-                            yield sol_next_inner;
-                            return;
-                        }
-                        if (solution_1.Solution.isValid(sol_next_inner) == false)
-                            continue;
-                        sol_next_inner = solution_1.Solution.fuse(sol_next_inner, sol_next);
-                        let sol_n = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                        sol_n = solution_1.Solution.fuse(sol, sol_n); //just a copy 
-                        if (this.isVar(arg1)) //arg1 eh uma variavel ? bind para o resultado 
-                         {
-                            let v_ret = solution_1.Solution.getValue(sol_next_inner, pa0);
-                            if (util_1.isUndefined(v_ret) == false)
-                                sol_n = this.bind(sol_n, v_ret, arg1);
-                        }
-                        if (solution_1.Solution.isValid(sol_n) == false)
-                            continue;
-                        if (this.isVar(arg2)) //arg1 eh uma variavel ? bind para o resultado 
-                         {
-                            let v_ret = solution_1.Solution.getValue(sol_next_inner, pa1);
-                            if (util_1.isUndefined(v_ret) == false)
-                                sol_n = this.bind(sol_n, v_ret, arg2);
-                        }
-                        if (solution_1.Solution.isValid(sol_n) == false)
-                            continue;
-                        if (this.isVar(arg3)) //arg1 eh uma variavel ? bind para o resultado 
-                         {
-                            let v_ret = solution_1.Solution.getValue(sol_next_inner, pa2);
-                            if (util_1.isUndefined(v_ret) == false)
-                                sol_n = this.bind(sol_n, v_ret, arg3);
-                        }
-                        if (solution_1.Solution.isValid(sol_n) == false)
-                            continue;
-                        query_satisf = true;
-                        let ret = sol_n.add_value(sol_next_inner);
-                        if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                            ret.state = solution_1.Solution.SolutionState.QTrue;
-                            yield ret;
-                            return;
-                        }
-                        else {
-                            yield ret;
+                            if (solution_1.Solution.isValid(sol_next_inner) == false)
+                                continue;
+                            sol_next_inner = solution_1.Solution.fuse(sol_next_inner, sol_next);
+                            let sol_n = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            sol_n = solution_1.Solution.fuse(sol, sol_n); //just a copy 
+                            if (this.isVar(arg1)) //arg1 eh uma variavel ? bind para o resultado 
+                             {
+                                let v_ret = solution_1.Solution.getValue(sol_next_inner, pa0);
+                                if (util_1.isUndefined(v_ret) == false)
+                                    sol_n = this.bind(sol_n, v_ret, arg1);
+                            }
+                            if (solution_1.Solution.isValid(sol_n) == false)
+                                continue;
+                            if (this.isVar(arg2)) //arg1 eh uma variavel ? bind para o resultado 
+                             {
+                                let v_ret = solution_1.Solution.getValue(sol_next_inner, pa1);
+                                if (util_1.isUndefined(v_ret) == false)
+                                    sol_n = this.bind(sol_n, v_ret, arg2);
+                            }
+                            if (solution_1.Solution.isValid(sol_n) == false)
+                                continue;
+                            if (this.isVar(arg3)) //arg1 eh uma variavel ? bind para o resultado 
+                             {
+                                let v_ret = solution_1.Solution.getValue(sol_next_inner, pa2);
+                                if (util_1.isUndefined(v_ret) == false)
+                                    sol_n = this.bind(sol_n, v_ret, arg3);
+                            }
+                            if (solution_1.Solution.isValid(sol_n) == false)
+                                continue;
+                            query_satisf = true;
+                            let ret = sol_n.add_value(sol_next_inner);
+                            if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
+                                ret.state = solution_1.Solution.SolutionState.QTrue;
+                                yield ret;
+                                return;
+                            }
+                            else {
+                                yield ret;
+                            }
                         }
                     }
                 }
@@ -1754,88 +1765,90 @@ var Interp;
             }
             let hasFound = false;
             let query_satisf = false;
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; });
-            for (var [i, p] of pnamed.entries()) {
-                // if (query_satisf)  continue
-                if (stk.contains_discard(p.unique_name))
-                    continue;
-                if (p.entry.name != f_name)
-                    continue;
-                let pp = p.entry;
-                if (pp instanceof atoms_1.GTems.Functor) {
-                    if (p.has(attribSelect) == false)
-                        continue; //UNLESS
-                    hasFound = true;
-                    if (pp.args.length != 2)
+            if (f_name in this.predicades) {
+                let pnamed = this.predicades[f_name].filter(x => x.entry.name == f_name);
+                for (var [i, p] of pnamed.entries()) {
+                    // if (query_satisf)  continue
+                    if (stk.contains_discard(p.unique_name))
                         continue;
-                    let pa0 = pp.args[0];
-                    if (util_1.isArray(pa0))
-                        pa0 = pa0[0];
-                    let pa1 = pp.args[1];
-                    if (util_1.isArray(pa1))
-                        pa1 = pa1[0];
-                    if (stk.contains(p.unique_name, arg1, arg2))
-                        continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    let stk_next = stk.pushCall(p.unique_name, arg1, arg2);
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                    if (this.isVar(arg1) == false) {
-                        sol_next = this.bind(sol_next, pa0, arg1);
-                    }
-                    if (this.isVar(arg2) == false) {
-                        sol_next = this.bind(sol_next, pa1, arg2);
-                    }
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true;
-                    if (util_1.isUndefined(p.condition) == false) {
-                        cond_satisf = false;
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (solution_1.Solution.isValid(sol_cond)) {
-                                cond_satisf = true;
-                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
-                                break; //apenas a primeira true ja serve
+                    if (p.entry.name != f_name)
+                        continue;
+                    let pp = p.entry;
+                    if (pp instanceof atoms_1.GTems.Functor) {
+                        if (p.has(attribSelect) == false)
+                            continue; //UNLESS
+                        hasFound = true;
+                        if (pp.args.length != 2)
+                            continue;
+                        let pa0 = pp.args[0];
+                        if (util_1.isArray(pa0))
+                            pa0 = pa0[0];
+                        let pa1 = pp.args[1];
+                        if (util_1.isArray(pa1))
+                            pa1 = pa1[0];
+                        if (stk.contains(p.unique_name, arg1, arg2))
+                            continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                        let stk_next = stk.pushCall(p.unique_name, arg1, arg2);
+                        //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                        let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        if (this.isVar(arg1) == false) {
+                            sol_next = this.bind(sol_next, pa0, arg1);
+                        }
+                        if (this.isVar(arg2) == false) {
+                            sol_next = this.bind(sol_next, pa1, arg2);
+                        }
+                        // testa a condicao de ativacao do predicado
+                        let cond_satisf = true;
+                        if (util_1.isUndefined(p.condition) == false) {
+                            cond_satisf = false;
+                            //testa a condicao
+                            for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
+                                if (solution_1.Solution.isValid(sol_cond)) {
+                                    cond_satisf = true;
+                                    sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
+                                    break; //apenas a primeira true ja serve
+                                }
                             }
                         }
-                    }
-                    if (cond_satisf == false)
-                        continue; // nem testa o corpo .. proximo termo
-                    if (solution_1.Solution.isValid(sol_next) == false)
-                        continue;
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
-                            yield sol_next_inner;
-                            return;
-                        }
-                        if (solution_1.Solution.isValid(sol_next_inner) == false)
+                        if (cond_satisf == false)
+                            continue; // nem testa o corpo .. proximo termo
+                        if (solution_1.Solution.isValid(sol_next) == false)
                             continue;
-                        let sol_n = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                        sol_n = solution_1.Solution.fuse(sol, sol_n); //just a copy 
-                        if (this.isVar(arg1)) //arg1 eh uma variavel ? bind para o resultado 
-                         {
-                            let v_ret = solution_1.Solution.getValue(sol_next_inner, pa0);
-                            if (util_1.isUndefined(v_ret) == false)
-                                sol_n = this.bind(sol_n, v_ret, arg1);
-                        }
-                        if (solution_1.Solution.isValid(sol_n) == false)
-                            continue;
-                        if (this.isVar(arg2)) //arg1 eh uma variavel ? bind para o resultado 
-                         {
-                            let v_ret = solution_1.Solution.getValue(sol_next_inner, pa1);
-                            if (util_1.isUndefined(v_ret) == false)
-                                sol_n = this.bind(sol_n, v_ret, arg2);
-                        }
-                        if (solution_1.Solution.isValid(sol_n) == false)
-                            continue;
-                        query_satisf = true;
-                        let ret = sol_n.add_value(sol_next_inner);
-                        if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                            ret.state = solution_1.Solution.SolutionState.QTrue;
-                            yield ret;
-                            return;
-                        }
-                        else {
-                            yield ret;
+                        for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                            if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                                yield sol_next_inner;
+                                return;
+                            }
+                            if (solution_1.Solution.isValid(sol_next_inner) == false)
+                                continue;
+                            let sol_n = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                            sol_n = solution_1.Solution.fuse(sol, sol_n); //just a copy 
+                            if (this.isVar(arg1)) //arg1 eh uma variavel ? bind para o resultado 
+                             {
+                                let v_ret = solution_1.Solution.getValue(sol_next_inner, pa0);
+                                if (util_1.isUndefined(v_ret) == false)
+                                    sol_n = this.bind(sol_n, v_ret, arg1);
+                            }
+                            if (solution_1.Solution.isValid(sol_n) == false)
+                                continue;
+                            if (this.isVar(arg2)) //arg1 eh uma variavel ? bind para o resultado 
+                             {
+                                let v_ret = solution_1.Solution.getValue(sol_next_inner, pa1);
+                                if (util_1.isUndefined(v_ret) == false)
+                                    sol_n = this.bind(sol_n, v_ret, arg2);
+                            }
+                            if (solution_1.Solution.isValid(sol_n) == false)
+                                continue;
+                            query_satisf = true;
+                            let ret = sol_n.add_value(sol_next_inner);
+                            if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
+                                ret.state = solution_1.Solution.SolutionState.QTrue;
+                                yield ret;
+                                return;
+                            }
+                            else {
+                                yield ret;
+                            }
                         }
                     }
                 }
@@ -2020,66 +2033,81 @@ var Interp;
                 return;
             }
             let hasFound = false;
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; }); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
-            for (var [i, p] of pnamed.entries()) {
-                if (stk.contains_discard(p.unique_name))
-                    continue;
-                // if (query_satisf) continue
-                if (p.entry.name != f_name)
-                    continue;
-                let pp = p.entry;
-                if (pp instanceof atoms_1.GTems.Functor) {
-                    if (p.has(attribSelect) == false)
-                        continue; //UNLESS
-                    if (pp.args.length != 1)
+            if (f_name in this.predicades) {
+                let pnamed = this.predicades[f_name].filter(x => x.entry.name == f_name); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
+                for (var [i, p] of pnamed.entries()) {
+                    if (stk.contains_discard(p.unique_name))
                         continue;
-                    let pa0 = pp.args[0];
-                    if (util_1.isArray(pa0))
-                        pa0 = pa0[0];
-                    hasFound = true;
-                    if (stk.contains(p.unique_name, arg1)) {
-                        continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    }
-                    let stk_next = stk.pushCall(p.unique_name, arg1);
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-                    if (this.isVar(arg1) == false) {
-                        sol_next = this.bind(sol_next, pa0, arg1);
-                    }
-                    if (solution_1.Solution.isValid(sol_next) == false)
+                    // if (query_satisf) continue
+                    if (p.entry.name != f_name)
                         continue;
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true;
-                    if (util_1.isUndefined(p.condition) == false) {
-                        cond_satisf = false;
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (solution_1.Solution.isValid(sol_cond)) {
-                                cond_satisf = true;
-                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
-                                break; //apenas a primeira true ja serve
+                    let pp = p.entry;
+                    if (pp instanceof atoms_1.GTems.Functor) {
+                        if (p.has(attribSelect) == false)
+                            continue; //UNLESS
+                        if (pp.args.length != 1)
+                            continue;
+                        let pa0 = pp.args[0];
+                        if (util_1.isArray(pa0))
+                            pa0 = pa0[0];
+                        hasFound = true;
+                        if (stk.contains(p.unique_name, arg1)) {
+                            continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                        }
+                        let stk_next = stk.pushCall(p.unique_name, arg1);
+                        //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
+                        let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
+                        if (this.isVar(arg1) == false) {
+                            sol_next = this.bind(sol_next, pa0, arg1);
+                        }
+                        if (solution_1.Solution.isValid(sol_next) == false)
+                            continue;
+                        // testa a condicao de ativacao do predicado
+                        let cond_satisf = true;
+                        if (util_1.isUndefined(p.condition) == false) {
+                            cond_satisf = false;
+                            //testa a condicao
+                            for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
+                                if (solution_1.Solution.isValid(sol_cond)) {
+                                    cond_satisf = true;
+                                    sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
+                                    break; //apenas a primeira true ja serve
+                                }
                             }
                         }
-                    }
-                    if (cond_satisf == false)
-                        continue; // nem testa o corpo .. proximo termo 
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
-                            yield sol_next_inner;
-                            return;
-                        }
-                        if (solution_1.Solution.isValid(sol_next_inner) == false)
-                            continue;
-                        if (this.isVar(arg1) || util_1.isUndefined(arg1)) //arg1 eh uma variavel ? bind para o resultado 
-                         {
-                            let v_ret = solution_1.Solution.getValue(sol_next_inner, pa0);
-                            if (util_1.isUndefined(v_ret) == false) {
-                                let sol_n = this.bind(sol, v_ret, arg1);
-                                if (solution_1.Solution.isValid(sol_n)) {
-                                    sol_n.value = sol_next_inner.value;
+                        if (cond_satisf == false)
+                            continue; // nem testa o corpo .. proximo termo 
+                        for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                            if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                                yield sol_next_inner;
+                                return;
+                            }
+                            if (solution_1.Solution.isValid(sol_next_inner) == false)
+                                continue;
+                            if (this.isVar(arg1) || util_1.isUndefined(arg1)) //arg1 eh uma variavel ? bind para o resultado 
+                             {
+                                let v_ret = solution_1.Solution.getValue(sol_next_inner, pa0);
+                                if (util_1.isUndefined(v_ret) == false) {
+                                    let sol_n = this.bind(sol, v_ret, arg1);
+                                    if (solution_1.Solution.isValid(sol_n)) {
+                                        sol_n.value = sol_next_inner.value;
+                                        query_satisf = true;
+                                        //yield sol_n
+                                        let ret = sol_n;
+                                        if (ret.state == solution_1.Solution.SolutionState.QCut) {
+                                            ret.state = solution_1.Solution.SolutionState.QTrue;
+                                            yield ret;
+                                            return;
+                                        }
+                                        else {
+                                            yield ret;
+                                        }
+                                    }
+                                }
+                                else {
+                                    //valor do argumento continua sem binding .... mas a saida eh valida
                                     query_satisf = true;
-                                    //yield sol_n
-                                    let ret = sol_n;
+                                    let ret = sol.add_value(sol_next_inner);
                                     if (ret.state == solution_1.Solution.SolutionState.QCut) {
                                         ret.state = solution_1.Solution.SolutionState.QTrue;
                                         yield ret;
@@ -2088,13 +2116,13 @@ var Interp;
                                     else {
                                         yield ret;
                                     }
+                                    //yield sol.add_value(sol_next_inner.value)
                                 }
                             }
                             else {
-                                //valor do argumento continua sem binding .... mas a saida eh valida
                                 query_satisf = true;
                                 let ret = sol.add_value(sol_next_inner);
-                                if (ret.state == solution_1.Solution.SolutionState.QCut) {
+                                if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
                                     ret.state = solution_1.Solution.SolutionState.QTrue;
                                     yield ret;
                                     return;
@@ -2104,19 +2132,6 @@ var Interp;
                                 }
                                 //yield sol.add_value(sol_next_inner.value)
                             }
-                        }
-                        else {
-                            query_satisf = true;
-                            let ret = sol.add_value(sol_next_inner);
-                            if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                                ret.state = solution_1.Solution.SolutionState.QTrue;
-                                yield ret;
-                                return;
-                            }
-                            else {
-                                yield ret;
-                            }
-                            //yield sol.add_value(sol_next_inner.value)
                         }
                     }
                 }
@@ -2170,59 +2185,61 @@ var Interp;
                 return;
             }
             let hasFound = false;
-            let pnamed = this.predicades.filter(x => { return x.entry.name === f_name; }); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
-            for (var [i, p] of pnamed.entries()) {
-                // if (query_satisf) continue
-                if (p.entry.name != f_name)
-                    continue;
-                let pp = p.entry;
-                if (pp instanceof atoms_1.GTems.Functor) {
-                    if (stk.contains_discard(p.unique_name))
+            if (f_name in this.predicades) {
+                let pnamed = this.predicades[f_name].filter(x => x.entry.name == f_name); //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
+                for (var [i, p] of pnamed.entries()) {
+                    // if (query_satisf) continue
+                    if (p.entry.name != f_name)
                         continue;
-                    if (p.has(attribSelect) == false)
-                        continue; //UNLESS
-                    if (pp.args.length != 0)
-                        continue;
-                    let pa0 = pp.args[0];
-                    if (util_1.isArray(pa0))
-                        pa0 = pa0[0];
-                    hasFound = true;
-                    if (stk.contains(p.unique_name)) {
-                        continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    }
-                    let stk_next = stk.pushCall(p.unique_name);
-                    let sol_next = sol;
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true;
-                    if (util_1.isUndefined(p.condition) == false) {
-                        cond_satisf = false;
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (solution_1.Solution.isValid(sol_cond)) {
-                                cond_satisf = true;
-                                sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
-                                break; //apenas a primeira true ja serve
+                    let pp = p.entry;
+                    if (pp instanceof atoms_1.GTems.Functor) {
+                        if (stk.contains_discard(p.unique_name))
+                            continue;
+                        if (p.has(attribSelect) == false)
+                            continue; //UNLESS
+                        if (pp.args.length != 0)
+                            continue;
+                        let pa0 = pp.args[0];
+                        if (util_1.isArray(pa0))
+                            pa0 = pa0[0];
+                        hasFound = true;
+                        if (stk.contains(p.unique_name)) {
+                            continue; //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                        }
+                        let stk_next = stk.pushCall(p.unique_name);
+                        let sol_next = sol;
+                        // testa a condicao de ativacao do predicado
+                        let cond_satisf = true;
+                        if (util_1.isUndefined(p.condition) == false) {
+                            cond_satisf = false;
+                            //testa a condicao
+                            for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
+                                if (solution_1.Solution.isValid(sol_cond)) {
+                                    cond_satisf = true;
+                                    sol_next = solution_1.Solution.fuse(sol_next, sol_cond);
+                                    break; //apenas a primeira true ja serve
+                                }
                             }
                         }
-                    }
-                    if (cond_satisf == false)
-                        continue; // nem testa o corpo .. proximo termo
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
-                            yield sol_next_inner;
-                            return;
-                        }
-                        if (solution_1.Solution.isValid(sol_next_inner) == false)
-                            continue;
-                        query_satisf = true;
-                        let ret = sol.add_value(sol_next_inner);
-                        if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                            ret.state = solution_1.Solution.SolutionState.QTrue;
-                            yield ret;
-                            return;
-                        }
-                        else {
-                            yield ret;
+                        if (cond_satisf == false)
+                            continue; // nem testa o corpo .. proximo termo
+                        for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
+                            if (sol_next_inner.state == solution_1.Solution.SolutionState.QFail) {
+                                yield sol_next_inner;
+                                return;
+                            }
+                            if (solution_1.Solution.isValid(sol_next_inner) == false)
+                                continue;
+                            query_satisf = true;
+                            let ret = sol.add_value(sol_next_inner);
+                            if (ret.state == solution_1.Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
+                                ret.state = solution_1.Solution.SolutionState.QTrue;
+                                yield ret;
+                                return;
+                            }
+                            else {
+                                yield ret;
+                            }
                         }
                     }
                 }

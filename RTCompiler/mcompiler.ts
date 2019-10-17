@@ -1018,7 +1018,8 @@ ctx.init()
 
 SyntaxParser.MatchSyntaxGoal(" main( ) ", (x) => { 
     let qq =[]
-    for(var i =0;i< 200;++i){  qq = ctx.all_query(x); }
+    qq = ctx.all_query(x); 
+    //for(var i =0;i< 200;++i){  qq = ctx.all_query(x); }
     console.dir(qq.map((s ) => { return s.toString() }), { depth: null }) 
 })
 
