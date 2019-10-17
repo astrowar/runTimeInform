@@ -141,6 +141,7 @@ export namespace MParse{
 
 
     export function* genPattens_i(iline: ITerm[], matc: Matchfunctior[]) {
+         
         let matc_ex: Matchfunctior[] = expand(matc)
         for (var [i, m] of matc_ex.entries()) {
             let anskitp = false

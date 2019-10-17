@@ -629,6 +629,7 @@ namespace SyntaxParser {
 
 
     function* codebodyMatch(args) {
+        if (isBalanced(args) ==false ) return undefined
         let basePathens = [
             new MParse.Matchfunctior("{ $X }", expr_inner),
 
@@ -673,6 +674,8 @@ namespace SyntaxParser {
 
             new MParse.Matchfunctior("$X ", expr_literal)
         ]
+
+        if (isBalanced(args) ==false ) return undefined
         for (var vj of MParse.genPattens_i(args, basePathens)) {
             let pool = []
             for (var vv of vj[1](vj[0])) {
@@ -917,6 +920,8 @@ namespace SyntaxParser {
 
     export function MatchSyntaxDecl(xcode: string, resolutionFunc) {
 
+        
+
         let basePathens = [
 
             new MParse.Matchfunctior("do  $X as $Y ", syntax_xy),
@@ -957,6 +962,8 @@ namespace SyntaxParser {
             let sline = splitStringInput(iline.line)
 
             let has_code: boolean = false
+            
+            if (isBalanced(sline) ==false ) continue
             for (var vj of MParse.genPattens_i(sline, basePathens)) {
                 has_code = vj[1](vj[0], resolutionFunc)
                 if (has_code) break

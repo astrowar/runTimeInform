@@ -1,4 +1,7 @@
  
+do perfom () as {  "$x y z"  } 
+do main() as write(perfom())
+
 
 do room(comando)
 do room(reator)
@@ -382,14 +385,15 @@ do person(person1, $x) as verb($x , $arr, _) , member(person1, $arr)
 do person(person2, $x) as verb($x , $arr, _) , member(person2, $arr) 
 do person(person3, $x) as verb($x , $arr, _) , member(person3, $arr) 
 
-do main() as  { 
+ 
+do perfom_x() =>  { 
                 conjug($revolto, "revolto",$m_adj),modo($ps,$m,$m_adj),  
                 conjug($mar, "mar",$x_noun),   modo($ps,$m,$x_noun),
                 conjug($estar, "estar",$x_verb),modo_v($ps,person3,$x_verb),
                 det($ps,$m,$artigo),
-                write("$artigo $mar $estar $revolto \n") }
+                ("$artigo $mar $estar $revolto \n") }
    
 
-
+ 
 do ph($x) as p($x,0)
 //do main() as conjug($revolto, "revolto",$m_verbo) , modo($ps,$m,$m_verbo), modo($ps,$m,$x_noun),  conjug($mar, "mar",$x_noun), write("o $mar esta $revolto \n")

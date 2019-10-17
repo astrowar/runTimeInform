@@ -592,6 +592,8 @@ var SyntaxParser;
         }
     }
     function* codebodyMatch(args) {
+        if (isBalanced(args) == false)
+            return undefined;
         let basePathens = [
             new parse_1.MParse.Matchfunctior("{ $X }", expr_inner),
             new parse_1.MParse.Matchfunctior("true", (x) => { return expr_atorm_reserv("true"); }),
@@ -625,6 +627,8 @@ var SyntaxParser;
             new parse_1.MParse.Matchfunctior("[ ]", expr_lst),
             new parse_1.MParse.Matchfunctior("$X ", expr_literal)
         ];
+        if (isBalanced(args) == false)
+            return undefined;
         for (var vj of parse_1.MParse.genPattens_i(args, basePathens)) {
             let pool = [];
             for (var vv of vj[1](vj[0])) {
@@ -872,6 +876,8 @@ var SyntaxParser;
                 continue;
             let sline = splitStringInput(iline.line);
             let has_code = false;
+            if (isBalanced(sline) == false)
+                continue;
             for (var vj of parse_1.MParse.genPattens_i(sline, basePathens)) {
                 has_code = vj[1](vj[0], resolutionFunc);
                 if (has_code)
