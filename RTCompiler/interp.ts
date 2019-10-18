@@ -1475,7 +1475,7 @@ export namespace Interp {
                         if (sol_if instanceof Solution.Solution) {
                             has_query = true 
                             if (Solution.isTrue(sol_if)) {
-                                sol_if = Solution.fuse(sol_if,sol)
+                                sol_if = Solution.fuse(sol,sol_if) //nao tem muita diferenca entre a ordem
                                 for (var sol_then of this.query(stk, sol_if, _arg2)) {
                                     yield sol_then
                                 }
@@ -1630,7 +1630,7 @@ export namespace Interp {
                             }
 
                             if (Solution.isValid(sol_next_inner) == false) continue
-                            sol_next_inner = Solution.fuse(sol_next_inner, sol_next);
+                            sol_next_inner = Solution.fuse(sol_next , sol_next_inner);
 
                             let sol_n = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                             sol_n = Solution.fuse(sol, sol_n) //just a copy 

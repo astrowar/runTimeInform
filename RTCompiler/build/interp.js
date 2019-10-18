@@ -1317,7 +1317,7 @@ var Interp;
                         if (sol_if instanceof solution_1.Solution.Solution) {
                             has_query = true;
                             if (solution_1.Solution.isTrue(sol_if)) {
-                                sol_if = solution_1.Solution.fuse(sol_if, sol);
+                                sol_if = solution_1.Solution.fuse(sol, sol_if); //nao tem muita diferenca entre a ordem
                                 for (var sol_then of this.query(stk, sol_if, _arg2)) {
                                     yield sol_then;
                                 }
@@ -1462,7 +1462,7 @@ var Interp;
                             }
                             if (solution_1.Solution.isValid(sol_next_inner) == false)
                                 continue;
-                            sol_next_inner = solution_1.Solution.fuse(sol_next_inner, sol_next);
+                            sol_next_inner = solution_1.Solution.fuse(sol_next, sol_next_inner);
                             let sol_n = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
                             sol_n = solution_1.Solution.fuse(sol, sol_n); //just a copy 
                             if (this.isVar(arg1)) //arg1 eh uma variavel ? bind para o resultado 

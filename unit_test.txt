@@ -1,6 +1,6 @@
  
-do perfom () as {  "$x y z"  } 
-do main() as write(perfom())
+ 
+ 
 
 
 do room(comando)
@@ -367,33 +367,35 @@ do verb(NCFP000, [plural,fem], NC )
  
 
 
-do modo_v(singular,$person, $x) as verb_i($x , $arr, _) , member(singular, $arr), member($person, $arr)
-do modo_v(plural,$person, $x) as verb_i($x , $arr, _) , member(plural, $arr), member($person, $arr)
+do modo_v($x,singular,$person ) as verb_i($x , $arr, _) , member(singular, $arr), member($person, $arr)
+do modo_v($x,plural,$person ) as verb_i($x , $arr, _) , member(plural, $arr), member($person, $arr)
 
-do modo(singular,mas, $x) as verb($x , $arr, _) , member(singular, $arr), member(mas, $arr)
-do modo(singular,fem, $x) as verb($x , $arr, _) , member(singular, $arr), member(fem, $arr)
-do modo(plural,mas, $x) as verb($x , $arr, _) , member(plural, $arr), member(mas, $arr)
-do modo(plural,fem, $x) as verb($x , $arr, _) , member(plural, $arr), member(fem, $arr)
+do modo($x,singular,mas ) as verb($x , $arr, _) , member(singular, $arr), member(mas, $arr)
+do modo($x,singular,fem ) as verb($x , $arr, _) , member(singular, $arr), member(fem, $arr)
+do modo($x,plural,mas ) as verb($x , $arr, _) , member(plural, $arr), member(mas, $arr)
+do modo($x,plural,fem ) as verb($x , $arr, _) , member(plural, $arr), member(fem, $arr)
 
-do det( singular,mas, "o")  
-do det( singular,fem, "a") 
-do det( plural,mas, "os") 
-do det( plural,fem, "as") 
+do det( "o", singular,mas )  
+do det( "a", singular,fem ) 
+do det( "os", plural,mas ) 
+do det( "as",plural,fem ) 
 
 
-do person(person1, $x) as verb($x , $arr, _) , member(person1, $arr) 
-do person(person2, $x) as verb($x , $arr, _) , member(person2, $arr) 
-do person(person3, $x) as verb($x , $arr, _) , member(person3, $arr) 
+do person($x, person1 ) as verb($x , $arr, _) , member(person1, $arr) 
+do person($x, person2 ) as verb($x , $arr, _) , member(person2, $arr) 
+do person($x, person3 ) as verb($x , $arr, _) , member(person3, $arr) 
 
+do conjug_verb($v,$ps,$person ) as modo_v($x_verb,$ps,$person  ),conjug($vconj, $v,$x_verb), $vconj
  
-do perfom_x() =>  { 
-                conjug($revolto, "revolto",$m_adj),modo($ps,$m,$m_adj),  
-                conjug($mar, "mar",$x_noun),   modo($ps,$m,$x_noun),
-                conjug($estar, "estar",$x_verb),modo_v($ps,person3,$x_verb),
-                det($ps,$m,$artigo),
-                ("$artigo $mar $estar $revolto \n") }
+do perfom() as  {                 
+                $mar = "mares", 
+                conjug($mar, _,$x_noun),  modo($x_noun,$ps,$m ), 
+                modo($m_adj,$ps,$m ),conjug($revolto, "revolto",$m_adj),
+                $estar = conjug_verb("estar",$ps,person3),
+                det($artigo,$ps,$m ),
+                write("$artigo $mar $estar $revolto \n") }
    
 
- 
+ do main() as perfom()
 do ph($x) as p($x,0)
 //do main() as conjug($revolto, "revolto",$m_verbo) , modo($ps,$m,$m_verbo), modo($ps,$m,$x_noun),  conjug($mar, "mar",$x_noun), write("o $mar esta $revolto \n")

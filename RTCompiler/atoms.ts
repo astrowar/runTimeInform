@@ -106,10 +106,17 @@ export namespace GTems {
     export class LiteralStr extends GValue{
         public value: string
         public expanded =false 
-        constructor(lit_str: string, _expanded:boolean = false ) {
+        constructor(lit_str: string, _expanded = undefined ) {
             super()
             this.value = lit_str;
-            this.expanded = _expanded
+
+            this.expanded = _expanded 
+            if (_expanded == undefined){
+                this.expanded = true 
+                if (this.value.indexOf("$") >= 0 ) this.expanded = false  
+                if (this.value.indexOf("[") >= 0 ) this.expanded = false  
+            }
+            
         } 
         toString(): string { return  this.value  }
         clone( ) { return new LiteralStr(this.value, this.expanded) }

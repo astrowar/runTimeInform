@@ -86,11 +86,18 @@ var GTems;
     }
     GTems.GValue = GValue;
     class LiteralStr extends GValue {
-        constructor(lit_str, _expanded = false) {
+        constructor(lit_str, _expanded = undefined) {
             super();
             this.expanded = false;
             this.value = lit_str;
             this.expanded = _expanded;
+            if (_expanded == undefined) {
+                this.expanded = true;
+                if (this.value.indexOf("$") >= 0)
+                    this.expanded = false;
+                if (this.value.indexOf("[") >= 0)
+                    this.expanded = false;
+            }
         }
         toString() { return this.value; }
         clone() { return new LiteralStr(this.value, this.expanded); }
