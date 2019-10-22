@@ -5,14 +5,22 @@ import { GTems } from "./atoms";
 import { Solution } from "./solution";
 import { isUndefined, isArray, isObject } from "util";
 import { MParse } from "./parse";
-import { truncateSync } from "fs";
+import { QueryStack as QS } from "./querystack";
+import { BuildIns } from "./buildin";
+import { ContextBase } from "./contextBase";
+
+import QueryStack = QS.QueryStack;
+
+//import Atom = GTems.Atom;
+//import GList = GTems.GList;
+//import Variable = GTems.Variable;
 
 
 export namespace Interp {
     function findEndAtom(x: string, i: number) {
         let n = x.length
         while (i < n) {
-            if (x[i] == " " )return i
+            if (x[i] == " ") return i
             if (";.,()[]|&\n\r".indexOf(x[i]) > -1) { return i }
             if ("\\".indexOf(x[i]) > -1) { return i }
             i = i + 1
@@ -112,107 +120,6 @@ export namespace Interp {
     }
 
 
-    class CallItem {
-        constructor(public unique_name: string, public arg: GTems.GBase[]) { }
-    }
-
-    class DiscardItem {
-        constructor(public unique_name: string ) { }
-    }
-
-
-    class QueryStack {
-        public callStack: CallItem[] = []
-        public discardStack: DiscardItem[] = []
-        constructor() { }
-        contains(unique_name: string, arg0: GTems.GBase = undefined, arg1: GTems.GBase = undefined, arg2: GTems.GBase = undefined, arg3: GTems.GBase = undefined): boolean {
-            for (var [i, cv] of this.callStack.entries()) {
-                if (cv.unique_name != unique_name) continue
-
-                if (isUndefined(arg0) && cv.arg.length > 0) continue; //arridade nao bate, cv eh menor que o requisitado
-                if (isUndefined(arg1) && cv.arg.length > 1) continue; //arridade nao bate
-                if (isUndefined(arg2) && cv.arg.length > 2) continue; //arridade nao bate
-                if (isUndefined(arg3) && cv.arg.length > 3) continue; //arridade nao bate
-
-                if (isUndefined(arg0) == false && cv.arg.length < 1) continue // cv eh  maior do que o requisitado
-                if (isUndefined(arg1) == false && cv.arg.length < 2) continue
-                if (isUndefined(arg2) == false && cv.arg.length < 3) continue
-                if (isUndefined(arg3) == false && cv.arg.length < 4) continue
-
-
-                if (isUndefined(arg0) == false){
-                    if (((cv.arg[0] instanceof GTems.Variable) && (arg0 instanceof GTems.Variable))  ==false )
-                        if (GTems.isEqually(cv.arg[0], arg0) == false) continue
-                }
-                if (isUndefined(arg1) == false) 
-                    if (((cv.arg[1] instanceof GTems.Variable) && (arg1 instanceof GTems.Variable))  ==false ) 
-                        if (GTems.isEqually(cv.arg[1], arg1) == false) continue
-                if (isUndefined(arg2) == false)
-                    if (((cv.arg[2] instanceof GTems.Variable) && (arg2 instanceof GTems.Variable))  ==false )
-                         if (GTems.isEqually(cv.arg[2], arg2) == false) continue
-                if (isUndefined(arg3) == false)
-                      if (((cv.arg[3] instanceof GTems.Variable) && (arg3 instanceof GTems.Variable))  ==false ) 
-                          if (GTems.isEqually(cv.arg[3], arg3) == false) continue
-
-                return true
-            }
-            return false
-        }
-
-        contains_discard(unique_name: string) : boolean {
-            for (var [i, cv] of this.discardStack.entries()) {
-                if (cv.unique_name === unique_name) return true
-            } 
-            return false
-        }
-
-
-        clone(): QueryStack {
-            let s = new QueryStack()
-            for (var [i, cv] of this.callStack.entries()) s.callStack.push(cv)
-            for (var [i, dv] of this.discardStack.entries()) s.discardStack.push(dv)
-            return s;
-        }
-
-
-        pushCall(unique_name: string, arg0: GTems.GBase = undefined, arg1: GTems.GBase = undefined, arg2: GTems.GBase = undefined, arg3: GTems.GBase = undefined): QueryStack {
-            let argv = []
-            if (isUndefined(arg0) == false) argv.push(arg0)
-            if (isUndefined(arg1) == false) argv.push(arg1)
-            if (isUndefined(arg2) == false) argv.push(arg2)
-            if (isUndefined(arg3) == false) argv.push(arg3)
-
-            if (isUndefined(arg1) == false && (isUndefined(arg0))) throw new Error("invalid call arguments")
-            if (isUndefined(arg2) == false && (isUndefined(arg0))) throw new Error("invalid call arguments")
-            if (isUndefined(arg2) == false && (isUndefined(arg1))) throw new Error("invalid call arguments")
-            if (isUndefined(arg3) == false && (isUndefined(arg2))) throw new Error("invalid call arguments")
-
-            let c = new CallItem(unique_name, argv)
-            let s = this.clone()
-            s.callStack.push(c)
-            return s
-        }
-
-        pushDiscard(unique_name: string   ): QueryStack {
-            let c = new DiscardItem(unique_name )
-            let s = this.clone()
-            s.discardStack.push(c)
-            return s
-        }
-         
-
-    }
-
-
-
-
-
-
-
-
-
-
-
 
     function getComplexityTerm(p: GTems.GBase): number {
 
@@ -253,13 +160,13 @@ export namespace Interp {
 
         if (isUndefined(a.condition) == false && isUndefined(b.condition)) return prior_A
         if (isUndefined(b.condition) == false && isUndefined(a.condition)) return prior_B
-        
-        if (a.complexity < 0 ) a.complexity = getComplexity(a.entry)
-        if (b.complexity < 0 ) b.complexity = getComplexity(a.entry)
 
-        let cp_a =  (a.complexity)
-        let cp_b =  (b.complexity)
-        
+        if (a.complexity < 0) a.complexity = getComplexity(a.entry)
+        if (b.complexity < 0) b.complexity = getComplexity(a.entry)
+
+        let cp_a = (a.complexity)
+        let cp_b = (b.complexity)
+
         if (cp_a > cp_b) return prior_A
         if (cp_b > cp_a) return prior_B
 
@@ -289,7 +196,7 @@ export namespace Interp {
 
         if (isUndefined(a.condition) == false && isUndefined(b.condition) == false) {
 
-  
+
             let cd_a = getComplexityTerm(a.condition)
             let cd_b = getComplexityTerm(b.condition)
             if (cd_a > cd_b) return prior_A
@@ -302,11 +209,11 @@ export namespace Interp {
 
 
     interface IHashPred {
-        [name: string] : PredicateEntry[]
-    };   
+        [name: string]: PredicateEntry[]
+    };
 
-    export class Context {
-        
+    export class Context implements ContextBase {
+
 
         init_const() {
             let n = this.cons_atoms.length
@@ -344,9 +251,9 @@ export namespace Interp {
             //let n = this.init_entries.length
             let sol = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
             let stk: QueryStack = new QueryStack()
-            for (var e of this.query_ar0(stk, sol, "init" )) { }
+            for (var e of this.query_ar0(stk, sol, "init")) { }
 
-   
+
         }
 
         init() {
@@ -361,7 +268,7 @@ export namespace Interp {
         predicades: IHashPred = {}
         understands: UnderstandEntry[] = []
         cons_atoms: ConstEntry[] = []
-        init_entries: PredicateEntry[] =[];
+        init_entries: PredicateEntry[] = [];
         predicades_id: number = 1
         writebuffer: string = "";
         warringbuffer: string[] = [];
@@ -403,14 +310,14 @@ export namespace Interp {
 
             pred_actual.set(PredicateKind.STATIC);
 
-            if (pred_actual.entry.name == "init"){
+            if (pred_actual.entry.name == "init") {
                 //this.init_entries.push(pred_actual )
                 //this.init_entries = this.init_entries.sort((a, b) => { return predicateEntryOrder(a, b) })
                 //return true;
             }
-            if(isUndefined( this.predicades[pred_actual.entry.name])) this.predicades[pred_actual.entry.name] =[]
+            if (isUndefined(this.predicades[pred_actual.entry.name])) this.predicades[pred_actual.entry.name] = []
             this.predicades[pred_actual.entry.name].unshift(pred_actual)
-            this.predicades[pred_actual.entry.name] =  this.predicades[pred_actual.entry.name].sort((a, b) => { return predicateEntryOrder(a, b) })
+            this.predicades[pred_actual.entry.name] = this.predicades[pred_actual.entry.name].sort((a, b) => { return predicateEntryOrder(a, b) })
             return true
         }
 
@@ -454,30 +361,30 @@ export namespace Interp {
         }
 
 
-        existPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]){
-            if ( isUndefined(this.predicades[f_name])) return false 
-            for(var [i,p] of this.predicades[f_name].entries()){
-                if (p.entry instanceof GTems.Functor){
-                if (p.entry.name == f_name)
-                if ( av.length != p.entry.args.length) continue
-                let n = av.length
-                let allBind = true 
-                for(var j =0; j< n;j++){
-                   if (p.entry.args[j] instanceof GTems.Variable) { allBind = false ; break }
-                   let b =Solution.bind(s, p.entry.args[j], av[j]);                    
-                   if ( Solution.isValid( b ) ==false ){ allBind = false ; break }
+        existPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {
+            if (isUndefined(this.predicades[f_name])) return false
+            for (var [i, p] of this.predicades[f_name].entries()) {
+                if (p.entry instanceof GTems.Functor) {
+                    if (p.entry.name == f_name)
+                        if (av.length != p.entry.args.length) continue
+                    let n = av.length
+                    let allBind = true
+                    for (var j = 0; j < n; j++) {
+                        if (p.entry.args[j] instanceof GTems.Variable) { allBind = false; break }
+                        let b = Solution.bind(s, p.entry.args[j], av[j]);
+                        if (Solution.isValid(b) == false) { allBind = false; break }
+                    }
+                    if (allBind) {
+                        return true
+                    }
                 }
-                if (allBind) {                      
-                  return true
-                }
-               }
-           }
-           return false 
+            }
+            return false
 
         }
 
         setPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {
-            if (this.existPredicate(stk,s,f_name, av)) return 
+            if (this.existPredicate(stk, s, f_name, av)) return
 
             this.predicades_id++;
             let unique_name = f_name + this.predicades_id.toString()
@@ -486,37 +393,37 @@ export namespace Interp {
 
             pred_actual.set(PredicateKind.DYNAMIC);
             pred_actual.set(PredicateKind.NONDIRECT);
-            if (isUndefined( this.predicades[f_name])) this.predicades[f_name] =[]
+            if (isUndefined(this.predicades[f_name])) this.predicades[f_name] = []
             this.predicades[f_name].unshift(pred_actual)
             this.predicades[f_name] = this.predicades[f_name].sort((a, b) => { return predicateEntryOrder(a, b) })
         }
 
-        unsetPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {           
-            let p_remove =[]
-            if ( isUndefined(this.predicades[f_name])) return   
-            for(var [i,p] of this.predicades[f_name].entries()){
-                 if (p.entry instanceof GTems.Functor){
-                 if (p.entry.name == f_name)
-                 if (p.has(PredicateKind.STATIC)) continue //nao apaga predicados estaticos
-                 if ( av.length != p.entry.args.length) continue
-                 let n = av.length
-                 let allBind = true 
-                 for(var j =0; j< n;j++){
-                    if (p.entry.args[j] instanceof GTems.Variable) { allBind = false ; break }
-                    let b =Solution.bind(s, p.entry.args[j], av[j]);                    
-                    if ( Solution.isValid( b ) ==false ){ allBind = false ; break }
-                 }
-                 if (allBind) {                      
-                    p_remove.push(p.unique_name)
-                 }
+        unsetPredicate(stk: QueryStack, s: Solution.Solution, f_name: string, av: GTems.GBase[]) {
+            let p_remove = []
+            if (isUndefined(this.predicades[f_name])) return
+            for (var [i, p] of this.predicades[f_name].entries()) {
+                if (p.entry instanceof GTems.Functor) {
+                    if (p.entry.name == f_name)
+                        if (p.has(PredicateKind.STATIC)) continue //nao apaga predicados estaticos
+                    if (av.length != p.entry.args.length) continue
+                    let n = av.length
+                    let allBind = true
+                    for (var j = 0; j < n; j++) {
+                        if (p.entry.args[j] instanceof GTems.Variable) { allBind = false; break }
+                        let b = Solution.bind(s, p.entry.args[j], av[j]);
+                        if (Solution.isValid(b) == false) { allBind = false; break }
+                    }
+                    if (allBind) {
+                        p_remove.push(p.unique_name)
+                    }
                 }
             }
-            
-            for(var [i,u] of p_remove.entries()){
-                this.predicades[f_name] =this.predicades[f_name].filter(el => { return  el.unique_name  !== u; } )
+
+            for (var [i, u] of p_remove.entries()) {
+                this.predicades[f_name] = this.predicades[f_name].filter(el => { return el.unique_name !== u; })
             }
 
-  
+
         }
 
         isList(v: GTems.GBase): boolean {
@@ -556,7 +463,7 @@ export namespace Interp {
             return false
         }
 
-        
+
         bind(sol: Solution.Solution, v1: GTems.GBase, v2: GTems.GBase): Solution.Solution {
             let sol2 = sol
             if (v1 instanceof GTems.Variable) {
@@ -583,50 +490,51 @@ export namespace Interp {
         }
 
 
-        expandVar(stk: QueryStack,sol: Solution.Solution, varname:string ) : GTems.GBase {
+        expandVar(stk: QueryStack, sol: Solution.Solution, varname: string): GTems.GBase {
             let vx = sol.var_values[varname]
-            if ( isUndefined(vx)){
+            if (isUndefined(vx)) {
                 for (var [vi, ve] of this.var_atoms.entries()) {
-                    if (ve.unique_name == varname) {                       
+                    if (ve.unique_name == varname) {
                         return ve.value
                     }
                 }
                 return undefined
-            }          
+            }
             return vx
         }
 
-        expandExpr(stk: QueryStack, sol: Solution.Solution, vcontetns: GTems.GBase ): string {
+        expandExpr(stk: QueryStack, sol: Solution.Solution, vcontetns: GTems.GBase, nlevel = 0): string {
 
             if (vcontetns instanceof GTems.LiteralStr) return vcontetns.value
+            if (nlevel > 5) return vcontetns.toString()
 
             let buffer = ""
-            if (vcontetns instanceof GTems.Variable){
-                let vv =   this.expandVar(stk, sol,vcontetns.name )
-                if ( isUndefined(vv)) return "$"+vcontetns.name
-                return this.expandExpr(stk,sol,vv)
+            if (vcontetns instanceof GTems.Variable) {
+                let vv = this.expandVar(stk, sol, vcontetns.name)
+                if (isUndefined(vv)) return "$" + vcontetns.name
+                return this.expandExpr(stk, sol, vv, nlevel + 1)
             }
 
             for (var qrep of this.query_ar1(stk, sol, "repr", vcontetns)) {
                 if (qrep instanceof Solution.Solution) {
-                    if (Solution.isValid(qrep)) {                         
-                        return this.expandExpr(stk,sol,qrep.value)
-                    } 
+                    if (Solution.isValid(qrep)) {
+                        return this.expandExpr(stk, sol, qrep.value, nlevel + 1)
+                    }
                 }
             }
 
 
-            if (vcontetns instanceof GTems.GList){                             
-                let xrep =  vcontetns.items.map((element) => {
-                    return  this.expandExpr( stk, sol, element )
-                  }); 
-                  return xrep.join(", ")                            
-            }                                
-            
-            return  vcontetns.toString()
-            
+            if (vcontetns instanceof GTems.GList) {
+                let xrep = vcontetns.items.map((element) => {
+                    return this.expandExpr(stk, sol, element, nlevel + 1)
+                });
+                return xrep.join(", ")
+            }
 
-          
+            return vcontetns.toString()
+
+
+
         }
         expandString(stk: QueryStack, sol: Solution.Solution, x: string): string {
             let buffer = ""
@@ -638,7 +546,7 @@ export namespace Interp {
                     let j = findEndAtom(x, i)
                     let varname = x.substr(i + 1, j - i - 1)
                     let local_var = new GTems.Variable(varname)
-                    let vx = this.expandExpr(stk,sol,local_var)                    
+                    let vx = this.expandExpr(stk, sol, local_var)
                     buffer += (isUndefined(vx) ? "$" + varname : vx.toString());
                     i = j - 1
                     continue
@@ -654,7 +562,7 @@ export namespace Interp {
                     if (contents[0] == "$") vcontetns = new GTems.Variable(contents.substr(1))
                     else vcontetns = new GTems.Atom(contents)
 
-                    buffer += this.expandExpr(stk,sol,vcontetns)
+                    buffer += this.expandExpr(stk, sol, vcontetns)
                     // for (var qrep of this.query_ar1(stk, sol, "repr", vcontetns)) {
                     //     if (qrep instanceof Solution.Solution) {
                     //         if (Solution.isValid(qrep)) {
@@ -705,7 +613,7 @@ export namespace Interp {
                     for (var qz of this.evaluate_query(stk, Solution.fuse(sol, qsol), q2)) {
                         if (qz.state == Solution.SolutionState.QFail) {
                             yield qz
-                            return 
+                            return
                         }
                         if (Solution.isValid(<Solution.Solution>qz)) {
                             let fz = Solution.fuse(qq, qz)
@@ -880,14 +788,13 @@ export namespace Interp {
 
 
             if (q instanceof GTems.LiteralStr) {
-                if (q.expanded ==false )
-                {
-                    let sxValue = this.expandString( stk,sol,q.value)
-                    let r=  new GTems.LiteralStr(sxValue, true)
-                     yield new Solution.Solution(Solution.SolutionState.QTrue, r, {})
+                if (q.expanded == false) {
+                    let sxValue = this.expandString(stk, sol, q.value)
+                    let r = new GTems.LiteralStr(sxValue, true)
+                    yield new Solution.Solution(Solution.SolutionState.QTrue, r, {})
                 }
                 else {
-                   yield new Solution.Solution(Solution.SolutionState.QTrue, q, {})
+                    yield new Solution.Solution(Solution.SolutionState.QTrue, q, {})
                 }
                 return
             }
@@ -912,7 +819,7 @@ export namespace Interp {
             if (code instanceof GTems.Atom) {
 
                 if (code.name == "discard") {
-                    stk.discardStack.push(  new DiscardItem( stk.callStack[stk.callStack.length-1].unique_name))
+                    stk.discardStack.push(new QS.DiscardItem(stk.callStack[stk.callStack.length - 1].unique_name))
                     yield new Solution.Solution(Solution.SolutionState.QTrue, new GTems.LiteralBool(true), {})
                     return
                 }
@@ -976,7 +883,7 @@ export namespace Interp {
                 return
             }
 
- 
+
 
 
 
@@ -994,7 +901,7 @@ export namespace Interp {
                 }
                 if (fsol.state == Solution.SolutionState.QFail) {
                     yield fsol
-                    return 
+                    return
                 }
 
             }
@@ -1048,339 +955,6 @@ export namespace Interp {
 
 
 
-        *buildIn_arith_op(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, f) {
-            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            if (this.isVar(arg2)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            for (var v1 of this.evaluate_query(stk, sol, arg1)) {
-                if (Solution.isValid(v1) == false) continue
-                for (var v2 of this.evaluate_query(stk, sol, arg2)) {
-                    if (Solution.isValid(v2) == false) continue
-                    if (v1.value instanceof GTems.LiteralNumber) {
-                        if (v2.value instanceof GTems.LiteralNumber) {
-                            let z = f(v1.value.value, v2.value.value)
-                            {
-                                yield new Solution.Solution(Solution.SolutionState.QTrue, new GTems.LiteralNumber(z), {})
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-
-        *buildIn_binary_op(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, f) {
-            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            if (this.isVar(arg2)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            for (var v1 of this.evaluate_query(stk, sol, arg1)) {
-                if (Solution.isValid(v1) == false) continue
-                for (var v2 of this.evaluate_query(stk, sol, arg2)) {
-                    if (Solution.isValid(v2) == false) continue
-                    let z = f(v1.value, v2.value)
-                    {
-                        if (isUndefined(z) == false)
-                            yield new Solution.Solution(Solution.SolutionState.QTrue, z, {})
-                    }
-                }
-            }
-        }
-
-
-
-
-
-
-        *buildIn_cmp_op(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, f) {
-            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            if (this.isVar(arg2)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            for (var v1 of this.evaluate_query(stk, sol, arg1)) {
-                for (var v2 of this.evaluate_query(stk, sol, arg2)) {
-                    if (v1.value instanceof GTems.LiteralNumber) {
-                        if (v2.value instanceof GTems.LiteralNumber) {
-                            if (f(v1.value.value, v2.value.value)) {
-                                yield new Solution.Solution(Solution.SolutionState.QTrue, new GTems.LiteralBool(true), {})
-                            }
-                            else {
-                                yield new Solution.Solution(Solution.SolutionState.QTrue, new GTems.LiteralBool(false), {})
-                            }
-                        }
-                    }
-                }
-            }
-            return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-        }
-
-        *buildIn_gte(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_cmp_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 >= x2 })) yield vv
-        }
-        *buildIn_lte(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_cmp_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 <= x2 })) yield vv
-        }
-
-
-        *buildIn_lt(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_cmp_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 < x2 })) yield vv
-        }
-
-        *buildIn_gt(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_cmp_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 > x2 })) yield vv
-        }
-
-        *buildIn_mul(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_arith_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 * x2 })) yield vv
-        }
-
-        *buildIn_add(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            //for (var vv of this.buildIn_arith_op(stk, sol, arg1,arg2 ,  (x1,x2)=>{return x1+x2}  )) yield vv
-
-            for (var vv of this.buildIn_binary_op(stk, sol, arg1, arg2, (x1, x2) => {
-                if (x1 instanceof GTems.LiteralStr)
-                    if (x2 instanceof GTems.LiteralStr) {
-                        return new GTems.LiteralStr(x1.value + x2.value)
-                    }
-                if (x1 instanceof GTems.LiteralNumber)
-                    if (x2 instanceof GTems.LiteralNumber) {
-                        return new GTems.LiteralNumber(x1.value + x2.value)
-                    }
-
-                return undefined
-            })) yield vv
-
-
-        }
-        *buildIn_minus(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_arith_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 - x2 })) yield vv
-        }
-        *buildIn_div(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_arith_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 / x2 })) yield vv
-        }
-
-        *buildIn_mod(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            for (var vv of this.buildIn_arith_op(stk, sol, arg1, arg2, (x1, x2) => { return x1 % x2 })) yield vv
-        }
-
-        *buildIn_head(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            // if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            if (this.isVar(arg2)) {
-                this.warring("head of a unbound variable is not possible")
-                // yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            }
-
-            if (arg2 instanceof GTems.GList) {
-                if (arg2.items.length > 0) {
-                    let head = arg2.items[0]
-                    let ss2 = this.bind(sol, head, arg1)
-                    yield ss2
-                }
-            }
-            // return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-        }
-
-        *buildIn_tail(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            // if (this.isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            if (this.isVar(arg2)) {
-                this.warring("tail of a unbound variable is not possible")
-                //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            }
-            if (arg2 instanceof GTems.GList) {
-                if (arg2.items.length > 0) {
-                    let tail = arg2.clone()
-                    tail.items.shift()
-                    let s = this.bind(sol, tail, arg1)
-                    yield s
-                }
-            }
-            //return new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-        }
-
-
-        *buildIn_atom_string(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-
-
-            if ((arg1 instanceof GTems.Atom) && (arg2 instanceof GTems.Variable)) {
-                let s1 = new GTems.LiteralStr(arg1.name)
-                yield this.bind(sol_next, arg2, s1)
-                return
-            }
-
-            if ((arg1 instanceof GTems.Variable) && (arg2 instanceof GTems.LiteralStr)) {
-                let s2 = new GTems.Atom(arg2.value)
-                yield this.bind(sol_next, arg1, s2)
-                return
-            }
-
-            if ((arg1 instanceof GTems.Atom) && (arg2 instanceof GTems.LiteralStr)) {
-                if (arg1.name == arg2.value) {
-                    yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {});
-                }
-                else {
-                    yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-                }
-                return
-            }
-
-            throw new Error("invalid argument for atom_string")
-        }
-
-
-        *buildIn_member(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-
-            if (arg2 instanceof GTems.GList) {
-                for (var i = 0; i < arg2.items.length; i++) {
-                    let r = this.bind(sol_next, arg2.items[i], arg1)
-                    if (Solution.isValid(r)) { yield r }
-                }
-                return
-
-            }
-            throw new Error("invalid argument for member, segond arg must be a list")
-        }
-
-     
-
-        *buildIn_random_member(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-
-            let getRandomInt = function(min, max) {
-                min = Math.ceil(min);
-                max = Math.floor(max);
-                return Math.floor(Math.random() * (max - min)) + min;
-              }
-
-
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-
-            if (arg2 instanceof GTems.GList) {
-                let i = getRandomInt(0,arg2.items.length )
-                {                
-                    let r = this.bind(sol_next, arg2.items[i], arg1)
-                    if (Solution.isValid(r)) { yield r }
-                }
-                return
-
-            }
-            throw new Error("invalid argument for member, segond arg must be a list")
-        }
-
-
-
-
-        *buildIn_nextto(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, arg3: GTems.GBase) {
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            if (arg3 instanceof GTems.GList) {
-                for (var i = 0; i <= arg3.items.length - 1; i++) {
-                    let x1 = arg3.items[i]
-                    let r = this.bind(sol_next, x1, arg1)
-                    if (Solution.isValid(r)) {
-                        let r2 = this.bind(r, arg3.items[i + 1], arg2)
-                        if (Solution.isValid(r2)) {
-                            yield r2
-                        }
-                    }
-                }
-            }
-        }
-
-
-        *buildIn_append(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, arg3: GTems.GBase) {
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-
-            if (arg1 instanceof GTems.GList) {
-                if (arg2 instanceof GTems.GList) {
-                    let qs = arg1.items.concat(arg2.items);
-                    let ql = new GTems.GList(qs)
-                    let r = this.bind(sol_next, ql, arg3)
-                    yield r
-                    return
-                }
-            }
-
-            if (arg3 instanceof GTems.GList) {
-                if ((arg1 instanceof GTems.Variable) && (arg2 instanceof GTems.GList)) {
-                    if (arg2.items.length > arg3.items.length) return
-
-                    let nlast = arg2.items.length;
-                    let q2 = new GTems.GList(arg3.items.slice(nlast))
-                    let r = this.bind(sol_next, q2, arg2)
-                    if (Solution.isValid(r)) {
-                        let q1 = new GTems.GList(arg3.items.slice(0, nlast))
-                        yield this.bind(r, q1, arg1)
-                    }
-                }
-
-                if ((arg1 instanceof GTems.GList) && (arg2 instanceof GTems.Variable)) {
-                    if (arg1.items.length > arg3.items.length) return
-
-                    let nlast = arg3.items.length - arg1.items.length;
-                    let q1 = new GTems.GList(arg3.items.slice(0, arg1.items.length))
-                    let q2 = new GTems.GList(arg3.items.slice(nlast))
-                    let r = this.bind(sol_next, q1, arg1)
-                    if (Solution.isValid(r)) {
-                        yield this.bind(r, q2, arg2)
-                    }
-                }
-
-
-                if ((arg1 instanceof GTems.Variable) && (arg2 instanceof GTems.Variable)) {
-                    for (var i = 0; i <= arg3.items.length; i++) {
-                        let q1 = new GTems.GList(arg3.items.slice(0, i))
-                        let q2 = new GTems.GList(arg3.items.slice(i))
-                        let r = this.bind(sol_next, q1, arg1)
-                        if (Solution.isValid(r)) {
-                            let r2 = this.bind(r, q2, arg2)
-                            yield r2
-                        }
-                    }
-                }
-
-
-                return
-            }
-
-
-
-
-            throw new Error("invalid arguments")
-        }
-        *buildIn_ht(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase, arg3: GTems.GBase) {
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-
-
-            if (arg3 instanceof GTems.GList) {
-
-                if (arg3.items.length > 0) {
-                    let t: GTems.GList = arg3.clone()
-                    let h: GTems.GBase = t.items[0]
-                    t.items.shift()
-                    let s = this.bind(sol, t, arg2)
-                    s = this.bind(s, h, arg1)
-                    yield s
-                }
-                return
-            }
-
-            if (arg3 instanceof GTems.Variable)
-                if (arg2 instanceof GTems.GList) {
-                    let nlist1 = new GTems.GList([arg1])
-                    for (var v of this.buildIn_append(stk, sol, nlist1, arg2, arg3)) yield v
-                    return
-                }
-            return
-            throw new Error("invalid arguments")
-        }
-
-
-
         *eval_rec(stk, sol, acc: GTems.GBase[], args: GTems.GBase[]) {
             if (args.length == 0) {
                 yield acc;
@@ -1420,27 +994,6 @@ export namespace Interp {
             }
         }
 
-        *buildIn_maplist(stk: QueryStack, sol: Solution.Solution, arg1: GTems.GBase, arg2: GTems.GBase) {
-            let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-            if (this.isVar(arg1)) {
-                this.warring("maplist of a unbound predicate is not possible")
-                yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            }
-            if (this.isVar(arg2)) {
-                this.warring(" maplist of a unbound input list is not possible")
-                yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-            }
-            if (arg1 instanceof GTems.Atom) {
-
-                if (arg2 instanceof GTems.GList) {
-
-                    for (var qs of this.apply_rec(stk, sol, [], arg2.items, arg1.name))
-                        yield new Solution.Solution(Solution.SolutionState.QTrue, new GTems.GList(qs), {})
-
-                }
-            }
-        }
-
 
 
         //general call
@@ -1463,32 +1016,32 @@ export namespace Interp {
         }
 
         *query_ar3_inner(stk: QueryStack, sol: Solution.Solution, attribSelect: PredicateKind, f_name: string, _arg1: GTems.GBase, _arg2: GTems.GBase, _arg3: GTems.GBase) {
-            
-            
+
+
             if (attribSelect == PredicateKind.NOMINAL) {
 
-                
 
-                if (f_name == "if_else") { 
-                    let has_query =false 
+
+                if (f_name == "if_else") {
+                    let has_query = false
                     for (var sol_if of this.query(stk, sol, _arg1)) {
                         if (sol_if instanceof Solution.Solution) {
-                            has_query = true 
+                            has_query = true
                             if (Solution.isTrue(sol_if)) {
-                                sol_if = Solution.fuse(sol,sol_if) //nao tem muita diferenca entre a ordem
+                                sol_if = Solution.fuse(sol, sol_if) //nao tem muita diferenca entre a ordem
                                 for (var sol_then of this.query(stk, sol_if, _arg2)) {
                                     yield sol_then
                                 }
                             }
                             else {
-                                for (var sol_else of this.query(stk, sol, _arg3)) {                                     
+                                for (var sol_else of this.query(stk, sol, _arg3)) {
                                     yield sol_else
                                 }
                             }
                         }
                     }
-                    if(has_query ==false ){
-                        for (var sol_else of this.query(stk, sol , _arg3)) {
+                    if (has_query == false) {
+                        for (var sol_else of this.query(stk, sol, _arg3)) {
                             yield sol_else
                         }
                     }
@@ -1496,10 +1049,10 @@ export namespace Interp {
                 }
 
             }
-            
-            
-            
-            
+
+
+
+
             for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                 if (Solution.isValid(x1)) {
                     let nsol = Solution.fuse(sol, x1)
@@ -1530,36 +1083,46 @@ export namespace Interp {
             let arg3 = _arg3
 
             if (f_name == "apply") {
-                if (_arg1 instanceof GTems.Atom){
-                    let f = new GTems.Functor( _arg1.name , _arg2,_arg3 )
-                    for(var r of this.evaluate_query(stk,sol,f)) {
+                if (_arg1 instanceof GTems.Atom) {
+                    let f = new GTems.Functor(_arg1.name, _arg2, _arg3)
+                    for (var r of this.evaluate_query(stk, sol, f)) {
                         yield r
-                    }                    
-                }                
+                    }
+                }
                 return
             }
 
 
             if (f_name == "append") {
 
-                for (var ssk of this.buildIn_append(stk, sol, arg1, arg2, arg3)) yield ssk
+                for (var ssk of BuildIns.buildIn_append(this, stk, sol, arg1, arg2, arg3)) yield ssk
                 return
             }
             if (f_name == "HT") {
 
-                for (var ssk of this.buildIn_ht(stk, sol, arg1, arg2, arg3)) yield ssk
+                for (var ssk of BuildIns.buildIn_ht(this, stk, sol, arg1, arg2, arg3)) yield ssk
                 return
             }
             if (f_name == "nextto") {
-                for (var ssn of this.buildIn_nextto(stk, sol, arg1, arg2, arg3)) yield ssn
+                for (var ssn of BuildIns.buildIn_nextto(this, stk, sol, arg1, arg2, arg3)) yield ssn
                 return
             }
 
+            if (true) {
+                for (var r of this.query_n_argv(stk, sol, attribSelect, f_name, [arg1, arg2, arg3])) {
+                    yield r
+                }
+
+            }
+
+        }
 
 
+
+        public *query_n_argv(stk: QueryStack, sol: Solution.Solution, attribSelect: PredicateKind, f_name: string, _arg: GTems.GBase[]) {
             let hasFound = false
-            let query_satisf: Boolean = false
 
+            let N = _arg.length
             if (f_name in this.predicades) {
                 let pnamed = this.predicades[f_name].filter(x => x.entry.name == f_name)
                 for (var [i, p] of pnamed.entries()) {
@@ -1574,35 +1137,24 @@ export namespace Interp {
                         if (p.has(attribSelect) == false) continue; //UNLESS
 
                         hasFound = true
-                        if (pp.args.length != 3) continue
-                        let pa0 = pp.args[0]
-                        if (isArray(pa0)) pa0 = pa0[0]
+                        if (pp.args.length != N) continue
+                        let pa = []
+                        for (var k = 0; k < N; k++) {
+                            if (isArray(pp.args[k])) pa.push(pp.args[k][0])
+                            else { pa.push(pp.args[k]) }
+                        }
 
-                        let pa1 = pp.args[1]
-                        if (isArray(pa1)) pa1 = pa1[0]
 
-                        let pa2 = pp.args[2]
-                        if (isArray(pa2)) pa2 = pa2[0]
-
-                        if (stk.contains(p.unique_name, arg1, arg2, arg3)) continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                        let stk_next: QueryStack = stk.pushCall(p.unique_name, arg1, arg2, arg3)
+                        //if (stk.contains(p.unique_name, ..._arg)) continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
+                        let stk_next: QueryStack = stk.pushCall(p.unique_name, ..._arg)
 
 
                         //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
                         let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                        if (this.isVar(arg1) == false) { sol_next = this.bind(sol_next, pa0, arg1) }
-                        if (this.isVar(arg2) == false) { sol_next = this.bind(sol_next, pa1, arg2) }
-                        if (this.isVar(arg3) == false) { sol_next = this.bind(sol_next, pa2, arg3) }
-
-                        //same parameter 
-                        if (this.isVar(pa1) && this.isVar(pa2)) {
-                            if (pa1 instanceof GTems.Variable)
-                                if (pa2 instanceof GTems.Variable) {
-                                    if (pa1.name == pa2.name) {
-
-                                    }
-                                }
+                        for (var k = 0; k < N; k++) {
+                            if (this.isVar(_arg[k]) == false) { sol_next = this.bind(sol_next, pa[k], _arg[k]) }
                         }
+
 
                         // testa a condicao de ativacao do predicado
                         let cond_satisf = true
@@ -1617,10 +1169,7 @@ export namespace Interp {
                                 }
                             }
                         }
-                        if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo
-
-
-
+                        if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo 
 
                         if (Solution.isValid(sol_next) == false) continue
                         for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
@@ -1630,33 +1179,23 @@ export namespace Interp {
                             }
 
                             if (Solution.isValid(sol_next_inner) == false) continue
-                            sol_next_inner = Solution.fuse(sol_next , sol_next_inner);
-
+                            sol_next_inner = Solution.fuse(sol_next, sol_next_inner);
                             let sol_n = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                            sol_n = Solution.fuse(sol, sol_n) //just a copy 
-                            if (this.isVar(arg1))  //arg1 eh uma variavel ? bind para o resultado 
-                            {
-                                let v_ret = Solution.getValue(sol_next_inner, pa0)
-                                if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg1)
-                            }
-                            if (Solution.isValid(sol_n) == false) continue
-                            if (this.isVar(arg2))  //arg1 eh uma variavel ? bind para o resultado 
-                            {
-                                let v_ret = Solution.getValue(sol_next_inner, pa1)
-                                if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg2)
-                            }
-                            if (Solution.isValid(sol_n) == false) continue
+                            sol_n = Solution.fuse(sol, sol_n) //just a copy                         
 
-                            if (this.isVar(arg3))  //arg1 eh uma variavel ? bind para o resultado 
-                            {
-                                let v_ret = Solution.getValue(sol_next_inner, pa2)
-                                if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg3)
+
+                            for (var k = 0; k < N; k++) {
+                                if (this.isVar(_arg[k]))  //arg1 eh uma variavel ? bind para o resultado 
+                                {
+                                    let v_ret = Solution.getValue(sol_next_inner, pa[k])
+                                    if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, _arg[k])
+                                    if (Solution.isValid(sol_n) == false) continue
+                                }
                             }
                             if (Solution.isValid(sol_n) == false) continue
 
 
 
-                            query_satisf = true
                             let ret = sol_n.add_value(sol_next_inner)
                             if (ret.state == Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
                                 ret.state = Solution.SolutionState.QTrue;
@@ -1673,12 +1212,14 @@ export namespace Interp {
 
             if (attribSelect != PredicateKind.UNLESS)
                 if (hasFound == false) {
-                    this.warring("Predicate " + f_name + "/3  not found ")
+                    if ((f_name == "write") || (f_name == "repr")) {
+
+                    }
+                    else {
+                        this.warring("Predicate " + f_name + "/" + N.toString() + "  not found ")
+                    }
                 }
         }
-
-
-
 
 
 
@@ -1703,13 +1244,13 @@ export namespace Interp {
 
             if (attribSelect == PredicateKind.NOMINAL) {
                 if (f_name == "set") {
-                    let _predName = undefined                    
+                    let _predName = undefined
                     if (_arg1 instanceof GTems.Atom) _predName = _arg1.name
-                    if (_arg1 instanceof GTems.Variable){
-                        for (var var1 of this.evaluate_query (stk, sol, _arg1)) { if ( Solution.isValid(var1) )  if (var1.value instanceof GTems.Atom) { _predName = var1.value.name; break }                        }
+                    if (_arg1 instanceof GTems.Variable) {
+                        for (var var1 of this.evaluate_query(stk, sol, _arg1)) { if (Solution.isValid(var1)) if (var1.value instanceof GTems.Atom) { _predName = var1.value.name; break } }
                     }
 
-                    if ( (isUndefined(_predName) ==false )  && _arg2 instanceof GTems.GList) {
+                    if ((isUndefined(_predName) == false) && _arg2 instanceof GTems.GList) {
                         for (var av of this.eval_rec(stk, sol, [], _arg2.items)) {
                             let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                             this.setPredicate(stk, s, _predName, av)
@@ -1719,14 +1260,14 @@ export namespace Interp {
                     }
                 }
 
-                if (f_name == "unset") {    
-                    let _predName = undefined                    
+                if (f_name == "unset") {
+                    let _predName = undefined
                     if (_arg1 instanceof GTems.Atom) _predName = _arg1.name
-                    if (_arg1 instanceof GTems.Variable){
-                        for (var var1 of this.evaluate_query (stk, sol, _arg1)) { if ( Solution.isValid(var1) )  if (var1.value instanceof GTems.Atom) { _predName = var1.value.name; break }                        }
+                    if (_arg1 instanceof GTems.Variable) {
+                        for (var var1 of this.evaluate_query(stk, sol, _arg1)) { if (Solution.isValid(var1)) if (var1.value instanceof GTems.Atom) { _predName = var1.value.name; break } }
                     }
 
-                    if ( (isUndefined(_predName) ==false )  && _arg2 instanceof GTems.GList) {
+                    if ((isUndefined(_predName) == false) && _arg2 instanceof GTems.GList) {
                         for (var av of this.eval_rec(stk, sol, [], _arg2.items)) {
                             let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                             this.unsetPredicate(stk, s, _predName, av)
@@ -1799,12 +1340,12 @@ export namespace Interp {
 
 
             if (f_name == "apply") {
-                if (_arg1 instanceof GTems.Atom){
-                    let f = new GTems.Functor( _arg1.name , _arg2  )
-                    for(var r of this.evaluate_query(stk,sol,f)) {
+                if (_arg1 instanceof GTems.Atom) {
+                    let f = new GTems.Functor(_arg1.name, _arg2)
+                    for (var r of this.evaluate_query(stk, sol, f)) {
                         yield r
-                    }                    
-                }                
+                    }
+                }
                 return
             }
 
@@ -1846,23 +1387,23 @@ export namespace Interp {
             // }
 
             if (f_name == "member") {
-                for (var qqm of this.buildIn_member(stk, sol, arg1, arg2)) {
+                for (var qqm of BuildIns.buildIn_member(this, stk, sol, arg1, arg2)) {
                     yield qqm
                 }
                 return
             }
             if (f_name == "random_member") {
-                for (var qqm of this.buildIn_random_member(stk, sol, arg1, arg2)) {
+                for (var qqm of BuildIns.buildIn_random_member(this, stk, sol, arg1, arg2)) {
                     yield qqm
                 }
                 return
             }
 
-           
+
 
 
             if (f_name == "atom_string") {
-                for (var qqm of this.buildIn_atom_string(stk, sol, arg1, arg2)) {
+                for (var qqm of BuildIns.buildIn_atom_string(this, stk, sol, arg1, arg2)) {
                     yield qqm
                 }
                 return
@@ -1877,77 +1418,77 @@ export namespace Interp {
             }
 
             if (f_name == "plus") {
-                for (var ssk of this.buildIn_add(stk, sol, arg1, arg2)) yield ssk
-                //yield this.buildIn_add(stk,sol, arg1, arg2)
+                for (var ssk of BuildIns.buildIn_add(this, stk, sol, arg1, arg2)) yield ssk
+                //yield BuildIns.buildIn_add(stk,sol, arg1, arg2)
                 return
             }
 
             if (f_name == "minus") {
-                for (var ss8 of this.buildIn_minus(stk, sol, arg1, arg2)) yield ss8
-                //yield this.buildIn_minus(stk,sol, arg1, arg2)
+                for (var ss8 of BuildIns.buildIn_minus(this, stk, sol, arg1, arg2)) yield ss8
+                //yield BuildIns.buildIn_minus(stk,sol, arg1, arg2)
                 return
             }
 
             if (f_name == "div") {
-                for (var ss81 of this.buildIn_div(stk, sol, arg1, arg2)) yield ss81
+                for (var ss81 of BuildIns.buildIn_div(this, stk, sol, arg1, arg2)) yield ss81
                 return
             }
 
             if (f_name == "mod") {
-                for (var ss82 of this.buildIn_mod(stk, sol, arg1, arg2)) yield ss82
+                for (var ss82 of BuildIns.buildIn_mod(this, stk, sol, arg1, arg2)) yield ss82
                 return
             }
 
 
             if (f_name == "GREATER") {
-                //yield this.buildIn_gt(stk,sol, arg1, arg2)
-                for (var ss7 of this.buildIn_gt(stk, sol, arg1, arg2)) yield ss7
+                //yield BuildIns.buildIn_gt(stk,sol, arg1, arg2)
+                for (var ss7 of BuildIns.buildIn_gt(this, stk, sol, arg1, arg2)) yield ss7
                 return
             }
 
             if (f_name == "LESS") {
-                //yield this.buildIn_lt(stk,sol, arg1, arg2)
-                for (var ss5 of this.buildIn_lt(stk, sol, arg1, arg2)) yield ss5
+                //yield BuildIns.buildIn_lt(stk,sol, arg1, arg2)
+                for (var ss5 of BuildIns.buildIn_lt(this, stk, sol, arg1, arg2)) yield ss5
                 return
             }
 
             if (f_name == "GREATEREQUAL") {
-                //yield this.buildIn_gt(stk,sol, arg1, arg2)
-                for (var ss7 of this.buildIn_gte(stk, sol, arg1, arg2)) yield ss7
+                //yield BuildIns.buildIn_gt(stk,sol, arg1, arg2)
+                for (var ss71 of BuildIns.buildIn_gte(this, stk, sol, arg1, arg2)) yield ss71
                 return
             }
 
             if (f_name == "LESSEQUAL") {
-                //yield this.buildIn_lt(stk,sol, arg1, arg2)
-                for (var ss5 of this.buildIn_lte(stk, sol, arg1, arg2)) yield ss5
+                //yield BuildIns.buildIn_lt(stk,sol, arg1, arg2)
+                for (var ss22 of BuildIns.buildIn_lte(this, stk, sol, arg1, arg2)) yield ss22
                 return
             }
 
 
 
             if (f_name == "*") {
-                // yield this.buildIn_mul(stk,sol, arg1, arg2)
-                for (var ss4 of this.buildIn_mul(stk, sol, arg1, arg2)) {
+                // yield BuildIns.buildIn_mul(stk,sol, arg1, arg2)
+                for (var ss4 of BuildIns.buildIn_mul(this, stk, sol, arg1, arg2)) {
                     yield ss4
                 }
                 return
             }
 
             if (f_name == "head") {
-                // yield this.buildIn_head(stk,sol, arg1, arg2)
-                for (var ss2 of this.buildIn_head(stk, sol, arg1, arg2)) yield ss2
+                // yield BuildIns.buildIn_head(stk,sol, arg1, arg2)
+                for (var ss2 of BuildIns.buildIn_head(this, stk, sol, arg1, arg2)) yield ss2
                 return
             }
 
             if (f_name == "tail") {
-                //yield this.buildIn_tail(stk,sol, arg1, arg2)
-                for (var ss2 of this.buildIn_tail(stk, sol, arg1, arg2)) yield ss2
+                //yield BuildIns.buildIn_tail(stk,sol, arg1, arg2)
+                for (var ss2 of BuildIns.buildIn_tail(this, stk, sol, arg1, arg2)) yield ss2
                 return
             }
 
             if (f_name == "maplist") {
-                //yield this.buildIn_tail(stk,sol, arg1, arg2)
-                for (var ssm of this.buildIn_maplist(stk, sol, arg1, arg2)) yield ssm
+                //yield BuildIns.buildIn_tail(stk,sol, arg1, arg2)
+                for (var ssm of BuildIns.buildIn_maplist(this, stk, sol, arg1, arg2)) yield ssm
                 return
             }
 
@@ -1964,101 +1505,18 @@ export namespace Interp {
             }
 
 
-
-            let hasFound = false
-            let query_satisf: Boolean = false
-
-            if (f_name in this.predicades ){
-            let pnamed = this.predicades[ f_name ].filter(x=>x.entry.name == f_name)
-
-            for (var [i, p] of pnamed.entries()) {
-
-                // if (query_satisf)  continue
-                if (stk.contains_discard(p.unique_name)) continue
-                if (p.entry.name != f_name) continue
-                let pp = p.entry;
-                if (pp instanceof GTems.Functor) {
-
-                    if (p.has(attribSelect) == false) continue; //UNLESS
-
-                    hasFound = true
-                    if (pp.args.length != 2) continue
-                    let pa0 = pp.args[0]
-                    if (isArray(pa0)) pa0 = pa0[0]
-
-                    let pa1 = pp.args[1]
-                    if (isArray(pa1)) pa1 = pa1[0]
-
-                    if (stk.contains(p.unique_name, arg1, arg2)) continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    let stk_next: QueryStack = stk.pushCall(p.unique_name, arg1, arg2)
-
-
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                    if (this.isVar(arg1) == false) { sol_next = this.bind(sol_next, pa0, arg1) }
-                    if (this.isVar(arg2) == false) { sol_next = this.bind(sol_next, pa1, arg2) }
-
-
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true
-                    if (isUndefined(p.condition) == false) {
-                        cond_satisf = false
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (Solution.isValid(sol_cond)) {
-                                cond_satisf = true
-                                sol_next = Solution.fuse(sol_next, sol_cond)
-                                break //apenas a primeira true ja serve
-                            }
-                        }
-                    }
-                    if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo
-
-
-
-                    if (Solution.isValid(sol_next) == false) continue
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        
-                        if (sol_next_inner.state == Solution.SolutionState.QFail) {
-                            yield sol_next_inner
-                            return 
-                        }
-
-                        if (Solution.isValid(sol_next_inner) == false) continue
-
-                        let sol_n = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                        sol_n = Solution.fuse(sol, sol_n) //just a copy 
-                        if (this.isVar(arg1))  //arg1 eh uma variavel ? bind para o resultado 
-                        {
-                            let v_ret = Solution.getValue(sol_next_inner, pa0)
-                            if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg1)
-                        }
-                        if (Solution.isValid(sol_n) == false) continue
-                        if (this.isVar(arg2))  //arg1 eh uma variavel ? bind para o resultado 
-                        {
-                            let v_ret = Solution.getValue(sol_next_inner, pa1)
-                            if (isUndefined(v_ret) == false) sol_n = this.bind(sol_n, v_ret, arg2)
-                        }
-                        if (Solution.isValid(sol_n) == false) continue
-
-                        query_satisf = true
-                        let ret = sol_n.add_value(sol_next_inner)
-                        if (ret.state == Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                            ret.state = Solution.SolutionState.QTrue;
-                            yield ret
-                            return
-                        }
-                        else {
-                            yield ret
-                        }
-                    }
+            if (true) {
+                for (var r of this.query_n_argv(stk, sol, attribSelect, f_name, [arg1, arg2])) {
+                    yield r
                 }
+
             }
-        }
-            if (attribSelect != PredicateKind.UNLESS)
-                if (hasFound == false) {
-                    this.warring("Predicate " + f_name + "/2  not found ")
-                }
+
+
+
+
+
+
         }
 
 
@@ -2090,7 +1548,7 @@ export namespace Interp {
 
             if (attribSelect != PredicateKind.UNLESS) {
 
-             
+
                 if (f_name == "set") {
                     //let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                     if (_arg1 instanceof GTems.Functor) {
@@ -2101,9 +1559,9 @@ export namespace Interp {
                         }
                         return
                     }
-                }  
-                
-                if (f_name == "unset") {                     
+                }
+
+                if (f_name == "unset") {
                     if (_arg1 instanceof GTems.Functor) {
                         for (var av of this.eval_rec(stk, sol, [], _arg1.args)) {
                             let s = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
@@ -2121,25 +1579,25 @@ export namespace Interp {
                             break
                         }
                     }
-                    return 
+                    return
                 }
 
                 if (f_name == "last") {
                     let last = undefined
                     for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
                         if (Solution.isTrue(x1)) {
-                            last = Solution.fuse(sol, x1)                            
+                            last = Solution.fuse(sol, x1)
                         }
                     }
-                    if ( isUndefined(last) ==false ) { yield last }
-                    return 
+                    if (isUndefined(last) == false) { yield last }
+                    return
                 }
 
                 if (f_name == "repeat") {
                     while (true) {
                         let hasQuery = false
                         for (var x1 of this.evaluate_query(stk, sol, _arg1)) {
-                            hasQuery = true 
+                            hasQuery = true
                             if (Solution.isTrue(x1)) {
                                 yield Solution.fuse(sol, x1)
                             }
@@ -2147,9 +1605,9 @@ export namespace Interp {
                                 return
                             }
                         }
-                        if (hasQuery ==false ) {
+                        if (hasQuery == false) {
                             //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-                            return 
+                            return
                         }
                     }
                 }
@@ -2172,10 +1630,9 @@ export namespace Interp {
                             yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                         }
                     }
-                    if (has_yielded == false) 
-                       { 
-                             yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                       }
+                    if (has_yielded == false) {
+                        yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
+                    }
 
                     return
                 }
@@ -2220,8 +1677,8 @@ export namespace Interp {
             let query_satisf: Boolean = false
 
 
-            
-            
+
+
             if (f_name == "is_atom") {
                 if (arg1 instanceof GTems.Atom) {
                     yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
@@ -2276,154 +1733,45 @@ export namespace Interp {
 
 
 
-
-
-
-
- 
-
-            let hasFound = false
-            if (f_name in this.predicades){
-            let pnamed = this.predicades[f_name].filter( x=> x.entry.name == f_name) //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
-            for (var [i, p] of pnamed.entries()) {
-
-                if (stk.contains_discard(p.unique_name)) continue
-                // if (query_satisf) continue
-                if (p.entry.name != f_name) continue
-                let pp = p.entry;
-                if (pp instanceof GTems.Functor) {
-
-                    if (p.has(attribSelect) == false) continue; //UNLESS
-
-
-                    if (pp.args.length != 1) continue
-                    let pa0 = pp.args[0]
-                    if (isArray(pa0)) pa0 = pa0[0]
-
-                    hasFound = true
-
-                    if (stk.contains(p.unique_name, arg1)) {
-
-                        continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    } 
-
-
-                    let stk_next: QueryStack = stk.pushCall(p.unique_name, arg1)
-
-                    //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
-                    let sol_next = new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
-                    if (this.isVar(arg1) == false) 
-                    {                    
-                        sol_next = this.bind(sol_next, pa0, arg1) 
-                    }
-                    if (Solution.isValid(sol_next) == false) continue 
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true
-                    if (isUndefined(p.condition) == false) {
-                        cond_satisf = false
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (Solution.isValid(sol_cond)) {
-                                cond_satisf = true
-                                sol_next = Solution.fuse(sol_next, sol_cond)
-                                break //apenas a primeira true ja serve
-                            }
-                        }
-                    }
-                    if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo 
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == Solution.SolutionState.QFail) {
-                            yield sol_next_inner
-                            return 
-                        }
-                        if (Solution.isValid(sol_next_inner) == false) continue
-
-                        if (this.isVar(arg1) || isUndefined(arg1))  //arg1 eh uma variavel ? bind para o resultado 
-                        {
-                            let v_ret = Solution.getValue(sol_next_inner, pa0)
-                            if (isUndefined(v_ret) == false) {
-                                let sol_n = this.bind(sol, v_ret, arg1)
-                                if (Solution.isValid(sol_n)) {
-                                    sol_n.value = sol_next_inner.value
-                                    query_satisf = true
-                                    //yield sol_n
-
-                                    let ret = sol_n
-                                    if (ret.state == Solution.SolutionState.QCut) {
-                                        ret.state = Solution.SolutionState.QTrue;
-                                        yield ret
-                                        return
-                                    }
-                                    else {
-                                        yield ret
-                                    } 
-                                }
-                            }
-                            else {
-                                //valor do argumento continua sem binding .... mas a saida eh valida
-                                query_satisf = true
-                                let ret = sol.add_value(sol_next_inner)
-                                if (ret.state == Solution.SolutionState.QCut) {
-                                    ret.state = Solution.SolutionState.QTrue;
-                                    yield ret
-                                    return
-                                }
-                                else {
-                                    yield ret
-                                }
-                                //yield sol.add_value(sol_next_inner.value)
-                            }
-                        }
-                        else {
-                            query_satisf = true
-                            let ret = sol.add_value(sol_next_inner)
-                            if (ret.state == Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                                ret.state = Solution.SolutionState.QTrue;
-                                yield ret
-                                return
-                            }
-                            else {
-                                yield ret
-                            }
-                            //yield sol.add_value(sol_next_inner.value)
-                        }
-                    }
-                }
-            }
+            for (var r of this.query_n_argv(stk, sol, attribSelect, f_name, [arg1])) {
+                yield r
             }
 
-            //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
 
 
-            
+
+
+
+
             if (f_name == "write") {
-                hasFound = true 
+
                 if (arg1 instanceof GTems.LiteralStr) { this.write(stk, sol, arg1.value); }
-                else 
-                { 
-                    this.write(stk, sol, arg1.toString()); 
-                } 
+                else {
+                    this.write(stk, sol, arg1.toString());
+                }
                 yield new Solution.Solution(Solution.SolutionState.QTrue, GTems.atom_true(), {})
                 return
             }
 
 
-            if (attribSelect != PredicateKind.UNLESS)
-                if (hasFound == false) {
+            if (attribSelect != PredicateKind.UNLESS) {
+                if (f_name === "repr") { }
+                else {
                     this.warring("Predicate " + f_name + "/1  not found ")
                 }
+            }
 
         }
         write(stk: QueryStack, sol: Solution.Solution, arg0: string) {
-  
-            this.writebuffer = this.writebuffer + arg0 
+
+            this.writebuffer = this.writebuffer + arg0
         }
         warring(arg0: string) {
             this.warringbuffer.push(arg0)
         }
 
 
-        public *query_ar0(stk: QueryStack, sol: Solution.Solution, f_name: string) { 
+        public *query_ar0(stk: QueryStack, sol: Solution.Solution, f_name: string) {
 
             let hasY: boolean = false
             for (var s of this.query_ar0_inner(stk, sol, PredicateKind.NOMINAL, f_name)) {
@@ -2453,71 +1801,10 @@ export namespace Interp {
                 return
             }
 
-            let hasFound = false
 
-            if (f_name in this.predicades){
-            let pnamed = this.predicades[f_name].filter( x=> x.entry.name == f_name) //evita a alteracao da lista de predicados durante o set afete o loop de busca de predicados
-
-            for (var [i, p] of pnamed.entries()) {
-                // if (query_satisf) continue
-                if (p.entry.name != f_name) continue
-                let pp = p.entry;
-                if (pp instanceof GTems.Functor) {
-
-                    if (stk.contains_discard(p.unique_name)) continue
-                    if (p.has(attribSelect) == false) continue; //UNLESS
-                    if (pp.args.length != 0) continue
-                    let pa0 = pp.args[0]
-                    if (isArray(pa0)) pa0 = pa0[0]
-                    hasFound = true
-                    if (stk.contains(p.unique_name)) {
-
-                        continue //nao tenta de novo se ja estiver tetando dar query no mesmo predicado e nos mesmo parametros
-                    }
-                    let stk_next: QueryStack = stk.pushCall(p.unique_name)
-                    let sol_next = sol
-                    // testa a condicao de ativacao do predicado
-                    let cond_satisf = true
-                    if (isUndefined(p.condition) == false) {
-                        cond_satisf = false
-                        //testa a condicao
-                        for (var sol_cond of this.evaluate_query(stk_next, sol_next, p.condition)) {
-                            if (Solution.isValid(sol_cond)) {
-                                cond_satisf = true
-                                sol_next = Solution.fuse(sol_next, sol_cond)
-                                break //apenas a primeira true ja serve
-                            }
-                        }
-                    }
-                    if (cond_satisf == false) continue  // nem testa o corpo .. proximo termo
-                    for (var sol_next_inner of this.evaluate_query(stk_next, sol_next, p.value)) {
-                        if (sol_next_inner.state == Solution.SolutionState.QFail) {
-                            yield sol_next_inner
-                            return 
-                        }
-
-                        if (Solution.isValid(sol_next_inner) == false) continue
-
-                        query_satisf = true
-                        let ret = sol.add_value(sol_next_inner)
-                        if (ret.state == Solution.SolutionState.QCut || p.has(PredicateKind.DIRECT)) {
-                            ret.state = Solution.SolutionState.QTrue;
-                            yield ret
-                            return
-                        }
-                        else {
-                            yield ret
-                        }
-                    }
-                }
+            for (var r of this.query_n_argv(stk, sol, attribSelect, f_name, [])) {
+                yield r
             }
-           }
-            //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
-
-            if (attribSelect != PredicateKind.UNLESS)
-                if (hasFound == false) {
-                    this.warring("Predicate " + f_name + "/1  not found ")
-                }
 
         }
 

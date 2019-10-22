@@ -1,0 +1,6 @@
+
+do repr($x) as $x
+do p($x,$y ,$z) as $x = 1 
+do q($x,$y ) as $x = 2
+
+do main() as p($a,$b, $c ), q($b,$c), write("out: $a $b $c") , $a
