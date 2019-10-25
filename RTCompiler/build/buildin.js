@@ -12,8 +12,7 @@ var BuildIns;
         }
         return false;
     }
-    function warring(x) {
-    }
+    function warring(x) { }
     function* buildIn_arith_op(ctx, stk, sol, arg1, arg2, f) {
         //arg1 nao rh uma variavel ..bind o argumento para o valor dela ..senao,bind na saida
         let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
@@ -86,27 +85,37 @@ var BuildIns;
     }
     BuildIns.buildIn_cmp_op = buildIn_cmp_op;
     function* buildIn_gte(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 >= x2; }))
+        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 >= x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_gte = buildIn_gte;
     function* buildIn_lte(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 <= x2; }))
+        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 <= x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_lte = buildIn_lte;
     function* buildIn_lt(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 < x2; }))
+        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 < x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_lt = buildIn_lt;
     function* buildIn_gt(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 > x2; }))
+        for (var vv of buildIn_cmp_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 > x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_gt = buildIn_gt;
     function* buildIn_mul(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 * x2; }))
+        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 * x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_mul = buildIn_mul;
@@ -126,17 +135,23 @@ var BuildIns;
     }
     BuildIns.buildIn_add = buildIn_add;
     function* buildIn_minus(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 - x2; }))
+        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 - x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_minus = buildIn_minus;
     function* buildIn_div(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 / x2; }))
+        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 / x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_div = buildIn_div;
     function* buildIn_mod(ctx, stk, sol, arg1, arg2) {
-        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => { return x1 % x2; }))
+        for (var vv of buildIn_arith_op(ctx, stk, sol, arg1, arg2, (x1, x2) => {
+            return x1 % x2;
+        }))
             yield vv;
     }
     BuildIns.buildIn_mod = buildIn_mod;
@@ -145,7 +160,7 @@ var BuildIns;
         let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
         // if (isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
         if (isVar(arg2)) {
-            warring("head of a unbound variable is not possible");
+            warring('head of a unbound variable is not possible');
             // yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
         }
         if (arg2 instanceof atoms_1.GTems.GList) {
@@ -163,7 +178,7 @@ var BuildIns;
         let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
         // if (isVar(arg1)) new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
         if (isVar(arg2)) {
-            ctx.warring("tail of a unbound variable is not possible");
+            ctx.warring('tail of a unbound variable is not possible');
             //yield new Solution.Solution(Solution.SolutionState.QFalse, GTems.atom_false(), {})
         }
         if (arg2 instanceof atoms_1.GTems.GList) {
@@ -179,17 +194,18 @@ var BuildIns;
     BuildIns.buildIn_tail = buildIn_tail;
     function* buildIn_atom_string(ctx, stk, sol, arg1, arg2) {
         let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
-        if ((arg1 instanceof atoms_1.GTems.Atom) && (arg2 instanceof atoms_1.GTems.Variable)) {
+        if (arg1 instanceof atoms_1.GTems.Atom && arg2 instanceof atoms_1.GTems.Variable) {
             let s1 = new atoms_1.GTems.LiteralStr(arg1.name);
             yield ctx.bind(sol_next, arg2, s1);
             return;
         }
-        if ((arg1 instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.LiteralStr)) {
+        if (arg1 instanceof atoms_1.GTems.Variable &&
+            arg2 instanceof atoms_1.GTems.LiteralStr) {
             let s2 = new atoms_1.GTems.Atom(arg2.value);
             yield ctx.bind(sol_next, arg1, s2);
             return;
         }
-        if ((arg1 instanceof atoms_1.GTems.Atom) && (arg2 instanceof atoms_1.GTems.LiteralStr)) {
+        if (arg1 instanceof atoms_1.GTems.Atom && arg2 instanceof atoms_1.GTems.LiteralStr) {
             if (arg1.name == arg2.value) {
                 yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
             }
@@ -198,7 +214,7 @@ var BuildIns;
             }
             return;
         }
-        throw new Error("invalid argument for atom_string");
+        throw new Error('invalid argument for atom_string');
     }
     BuildIns.buildIn_atom_string = buildIn_atom_string;
     function* buildIn_member(ctx, stk, sol, arg1, arg2) {
@@ -212,7 +228,7 @@ var BuildIns;
             }
             return;
         }
-        throw new Error("invalid argument for member, segond arg must be a list");
+        throw new Error('invalid argument for member, segond arg must be a list');
     }
     BuildIns.buildIn_member = buildIn_member;
     function* buildIn_random_member(ctx, stk, sol, arg1, arg2) {
@@ -232,7 +248,7 @@ var BuildIns;
             }
             return;
         }
-        throw new Error("invalid argument for member, segond arg must be a list");
+        throw new Error('invalid argument for member, segond arg must be a list');
     }
     BuildIns.buildIn_random_member = buildIn_random_member;
     function* buildIn_nextto(ctx, stk, sol, arg1, arg2, arg3) {
@@ -263,7 +279,7 @@ var BuildIns;
             }
         }
         if (arg3 instanceof atoms_1.GTems.GList) {
-            if ((arg1 instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.GList)) {
+            if (arg1 instanceof atoms_1.GTems.Variable && arg2 instanceof atoms_1.GTems.GList) {
                 if (arg2.items.length > arg3.items.length)
                     return;
                 let nlast = arg2.items.length;
@@ -274,7 +290,7 @@ var BuildIns;
                     yield ctx.bind(r, q1, arg1);
                 }
             }
-            if ((arg1 instanceof atoms_1.GTems.GList) && (arg2 instanceof atoms_1.GTems.Variable)) {
+            if (arg1 instanceof atoms_1.GTems.GList && arg2 instanceof atoms_1.GTems.Variable) {
                 if (arg1.items.length > arg3.items.length)
                     return;
                 let nlast = arg3.items.length - arg1.items.length;
@@ -285,7 +301,8 @@ var BuildIns;
                     yield ctx.bind(r, q2, arg2);
                 }
             }
-            if ((arg1 instanceof atoms_1.GTems.Variable) && (arg2 instanceof atoms_1.GTems.Variable)) {
+            if (arg1 instanceof atoms_1.GTems.Variable &&
+                arg2 instanceof atoms_1.GTems.Variable) {
                 for (var i = 0; i <= arg3.items.length; i++) {
                     let q1 = new atoms_1.GTems.GList(arg3.items.slice(0, i));
                     let q2 = new atoms_1.GTems.GList(arg3.items.slice(i));
@@ -298,7 +315,7 @@ var BuildIns;
             }
             return;
         }
-        throw new Error("invalid arguments");
+        throw new Error('invalid arguments');
     }
     BuildIns.buildIn_append = buildIn_append;
     function* buildIn_ht(ctx, stk, sol, arg1, arg2, arg3) {
@@ -322,17 +339,17 @@ var BuildIns;
                 return;
             }
         return;
-        throw new Error("invalid arguments");
+        throw new Error('invalid arguments');
     }
     BuildIns.buildIn_ht = buildIn_ht;
     function* buildIn_maplist(ctx, stk, sol, arg1, arg2) {
         let sol_next = new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QTrue, atoms_1.GTems.atom_true(), {});
         if (isVar(arg1)) {
-            ctx.warring("maplist of a unbound predicate is not possible");
+            ctx.warring('maplist of a unbound predicate is not possible');
             yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QFalse, atoms_1.GTems.atom_false(), {});
         }
         if (isVar(arg2)) {
-            ctx.warring(" maplist of a unbound input list is not possible");
+            ctx.warring(' maplist of a unbound input list is not possible');
             yield new solution_1.Solution.Solution(solution_1.Solution.SolutionState.QFalse, atoms_1.GTems.atom_false(), {});
         }
         if (arg1 instanceof atoms_1.GTems.Atom) {
